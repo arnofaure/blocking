@@ -2,6 +2,14 @@
 
 All notable changes to Blocking Tool are documented here.
 
+## [0.1.2] - 2026-07-02
+
+### Added
+- "Storyboard App" link in the menu, opening [storyboard.arnofaure.com](http://storyboard.arnofaure.com/) in a new tab
+
+### Fixed
+- Camera path line/markers were the same orange as the default first character color, making the path hard to spot in the scene. Changed to red.
+
 ## [0.1.1] - 2026-07-02
 
 ### Added
