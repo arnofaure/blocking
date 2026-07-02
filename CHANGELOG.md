@@ -2,6 +2,16 @@
 
 All notable changes to Blocking Tool are documented here.
 
+## [0.1.1] - 2026-07-02
+
+### Added
+- "Shortcuts" menu item and modal listing every keyboard and mouse shortcut in the app
+- Separate Width and Depth sliders for props (previously one "Width" slider scaled both X and Z together)
+
+### Fixed
+- Help modal's close button rendered outside the dialog, to the left of it — caused by the global button style's `width:100%` combined with `position:absolute; right:12px` pushing it past the left edge. Fixed by resetting width/margin on the close button.
+- Missing visual space between "by" and "Arno Faure" (and "under" and the license link) in the page footer — replaced the plain space before each link with a non-breaking space
+
 ## [0.1.0] - 2026-07-02
 
 Initial release.

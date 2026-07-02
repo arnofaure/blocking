@@ -83,10 +83,44 @@
   }
   #help-modal ol strong { color:var(--text); }
   #help-close {
-    position:absolute; top:12px; right:12px; background:none; border:none;
+    position:absolute; top:12px; right:12px; width:auto; margin:0; background:none; border:none;
     color:var(--text-dim); cursor:pointer; padding:4px; line-height:1;
   }
   #help-close:hover { color:var(--text); }
+
+  /* SHORTCUTS MODAL */
+  #shortcuts-overlay {
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5);
+    backdrop-filter: blur(4px); z-index:300; align-items:center; justify-content:center; padding:20px;
+  }
+  #shortcuts-overlay.show { display:flex; }
+  #shortcuts-modal {
+    position:relative; background: var(--panel); border:0.5px solid var(--border-hover);
+    border-radius:10px; max-width:520px; width:100%; max-height:80vh; overflow-y:auto;
+    padding:24px; color:var(--text);
+  }
+  #shortcuts-modal h2 { font-size:15px; font-weight:600; margin:0 0 16px; }
+  #shortcuts-modal h3 {
+    font-size:10px; font-weight:600; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--text-dim); margin:18px 0 8px;
+  }
+  #shortcuts-modal h3:first-of-type { margin-top:0; }
+  .sc-row {
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
+    padding:6px 0; font-size:12.5px; color:var(--text-dim);
+    border-bottom:0.5px solid var(--panel-border);
+  }
+  .sc-row:last-child { border-bottom:none; }
+  .sc-key {
+    flex-shrink:0; font-size:11px; color:var(--text); background:var(--surface2);
+    border:0.5px solid var(--panel-border); border-radius:4px; padding:2px 7px;
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+  }
+  #shortcuts-close {
+    position:absolute; top:12px; right:12px; width:auto; margin:0; background:none; border:none;
+    color:var(--text-dim); cursor:pointer; padding:4px; line-height:1;
+  }
+  #shortcuts-close:hover { color:var(--text); }
   #tb-info { margin-left:auto; display:flex; align-items:center; gap:14px; font-size:11px; color:var(--text-dim); }
   #tb-info b { color:var(--text); font-weight:600; }
 
@@ -343,13 +377,17 @@
         <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         Help
       </button>
+      <button class="tb-btn" id="menuShortcuts" title="List of all keyboard and mouse shortcuts">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><line x1="6" y1="10" x2="6" y2="10"/><line x1="10" y1="10" x2="10" y2="10"/><line x1="14" y1="10" x2="14" y2="10"/><line x1="18" y1="10" x2="18" y2="10"/><line x1="7" y1="14" x2="17" y2="14"/></svg>
+        Shortcuts
+      </button>
       <div class="tb-sep-h"></div>
       <a class="tb-menu-footer" href="https://github.com/arnofaure/blocking" target="_blank" rel="noopener noreferrer" title="View source on GitHub">
         <span class="tb-menu-footer-left">
           <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
           GitHub
         </span>
-        <span class="tb-version">v0.1.0</span>
+        <span class="tb-version">v0.1.1</span>
       </a>
     </div>
   </div>
@@ -475,6 +513,11 @@
         <span class="label-sm">Width</span>
         <input type="range" id="propWidth" min="0.4" max="3" step="0.05" value="1">
         <span class="hint" style="margin:0; width:52px; text-align:right" id="propWidthLabel">1.0m</span>
+      </div>
+      <div class="row align">
+        <span class="label-sm">Depth</span>
+        <input type="range" id="propDepth" min="0.4" max="3" step="0.05" value="1">
+        <span class="hint" style="margin:0; width:52px; text-align:right" id="propDepthLabel">1.0m</span>
       </div>
       <div class="row align">
         <span class="label-sm">Height</span>
@@ -634,8 +677,38 @@
   </div>
 </div>
 
+<div id="shortcuts-overlay">
+  <div id="shortcuts-modal">
+    <button id="shortcuts-close" title="Close">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </button>
+    <h2>Keyboard &amp; mouse shortcuts</h2>
+    <p style="margin:0 0 4px;font-size:11px;color:var(--text-dim);">On Mac, use Cmd instead of Ctrl.</p>
+
+    <h3>General</h3>
+    <div class="sc-row"><span>Save shot</span><span class="sc-key">Ctrl+S</span></div>
+    <div class="sc-row"><span>Undo</span><span class="sc-key">Ctrl+Z</span></div>
+    <div class="sc-row"><span>Play / pause timeline</span><span class="sc-key">Space</span></div>
+    <div class="sc-row"><span>Reset camera</span><span class="sc-key">R</span></div>
+    <div class="sc-row"><span>Lock / unlock selected item</span><span class="sc-key">L</span></div>
+    <div class="sc-row"><span>Close this or any other dialog</span><span class="sc-key">Esc</span></div>
+
+    <h3>Main &amp; top views</h3>
+    <div class="sc-row"><span>Orbit camera</span><span class="sc-key">Drag empty space</span></div>
+    <div class="sc-row"><span>Pan camera</span><span class="sc-key">Right-click + drag</span></div>
+    <div class="sc-row"><span>Zoom camera</span><span class="sc-key">Scroll wheel</span></div>
+    <div class="sc-row"><span>Move a character/object</span><span class="sc-key">Drag it</span></div>
+    <div class="sc-row"><span>Move the camera (top view)</span><span class="sc-key">Drag the white marker</span></div>
+    <div class="sc-row"><span>Draw a camera path</span><span class="sc-key">Shift + drag on the floor</span></div>
+
+    <h3>Characters / Objects list</h3>
+    <div class="sc-row"><span>Rename an item</span><span class="sc-key">Double-click its name</span></div>
+    <div class="sc-row"><span>Select multiple items to group</span><span class="sc-key">Ctrl/Cmd-click, or the checkbox</span></div>
+  </div>
+</div>
+
 <footer id="page-footer">
-  &copy; 2026 Created for the love of stories by <a href="https://arnofaure.com" target="_blank" rel="noopener noreferrer">Arno Faure</a> &middot; Licensed under <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener noreferrer">CC BY-NC 4.0</a>
+  &copy; 2026 Created for the love of stories by&nbsp;<a href="https://arnofaure.com" target="_blank" rel="noopener noreferrer">Arno Faure</a> &middot; Licensed under&nbsp;<a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener noreferrer">CC BY-NC 4.0</a>
 </footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -1103,6 +1176,7 @@
     if (!selected || selected === 'camera' || !selected.userData.isProp) return;
     const size = PROP_SIZES[selected.userData.type];
     document.getElementById('propWidthLabel').textContent = formatLength(size.w * selected.scale.x);
+    document.getElementById('propDepthLabel').textContent = formatLength(size.d * selected.scale.z);
     document.getElementById('propHeightLabel').textContent = formatLength(size.h * selected.scale.y);
   }
   document.getElementById('sizeUnit').onchange = (e) => {
@@ -1163,6 +1237,7 @@
     propScaleRow.style.display = isProp ? 'flex' : 'none';
     if (isProp){
       document.getElementById('propWidth').value = selected.scale.x;
+      document.getElementById('propDepth').value = selected.scale.z;
       document.getElementById('propHeight').value = selected.scale.y;
       refreshPropLabels();
     }
@@ -1357,9 +1432,13 @@
   document.getElementById('propWidth').addEventListener('pointerdown', pushUndo);
   document.getElementById('propWidth').oninput = (e) => {
     if (!selected || selected === 'camera' || !selected.userData.isProp) return;
-    const s = parseFloat(e.target.value);
-    selected.scale.x = s;
-    selected.scale.z = s;
+    selected.scale.x = parseFloat(e.target.value);
+    refreshPropLabels();
+  };
+  document.getElementById('propDepth').addEventListener('pointerdown', pushUndo);
+  document.getElementById('propDepth').oninput = (e) => {
+    if (!selected || selected === 'camera' || !selected.userData.isProp) return;
+    selected.scale.z = parseFloat(e.target.value);
     refreshPropLabels();
   };
   document.getElementById('propHeight').addEventListener('pointerdown', pushUndo);
@@ -2312,7 +2391,19 @@
   document.getElementById('menuHelp').onclick = () => { openHelp(); mainMenu.classList.remove('open'); mainMenuBtn.classList.remove('open'); };
   document.getElementById('help-close').onclick = closeHelp;
   helpOverlay.addEventListener('click', (e) => { if (e.target === helpOverlay) closeHelp(); });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && helpOverlay.classList.contains('show')) closeHelp(); });
+
+  const shortcutsOverlay = document.getElementById('shortcuts-overlay');
+  function openShortcuts(){ shortcutsOverlay.classList.add('show'); }
+  function closeShortcuts(){ shortcutsOverlay.classList.remove('show'); }
+  document.getElementById('menuShortcuts').onclick = () => { openShortcuts(); mainMenu.classList.remove('open'); mainMenuBtn.classList.remove('open'); };
+  document.getElementById('shortcuts-close').onclick = closeShortcuts;
+  shortcutsOverlay.addEventListener('click', (e) => { if (e.target === shortcutsOverlay) closeShortcuts(); });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (helpOverlay.classList.contains('show')) closeHelp();
+    if (shortcutsOverlay.classList.contains('show')) closeShortcuts();
+  });
 
   // ---------- Camera move presets ----------
   let animating = false;
