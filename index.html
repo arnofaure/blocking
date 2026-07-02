@@ -1,0 +1,2431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Blocking Tool — Rough Previs</title>
+<style>
+  :root{
+    --bg: #0d0d0d;
+    --panel: #161616;
+    --surface2: #1f1f1f;
+    --panel-border: rgba(255,255,255,0.08);
+    --border-hover: rgba(255,255,255,0.18);
+    --border-sel: rgba(255,255,255,0.55);
+    --text: #f5f5f5;
+    --text-dim: #9a9a9a;
+    --accent: #f5f5f5;
+    --select: #ec4899;
+    --danger: #e0584a;
+    --radius: 6px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; height:100%; overflow:hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    font-size:13px;
+    background: var(--bg); color: var(--text); }
+
+  #toolbar {
+    position:fixed; top:0; left:0; right:0; height:52px; z-index:50;
+    background: rgba(13,13,13,0.92); backdrop-filter: blur(12px);
+    border-bottom:0.5px solid var(--panel-border);
+    display:flex; align-items:center; gap:12px; padding:0 16px;
+  }
+  .tb-menu { position:relative; }
+  .tb-menu-btn {
+    background:transparent; border:none; cursor:pointer; color:var(--text);
+    display:flex; align-items:center; gap:6px; padding:6px 8px;
+    border-radius: var(--radius); font-size:13px; font-weight:500;
+    letter-spacing:.03em; text-transform:uppercase; transition: background .15s;
+  }
+  .tb-menu-btn:hover, .tb-menu-btn.open { background: var(--surface2); }
+  .tb-menu-btn svg { transition: transform .15s; flex-shrink:0; }
+  .tb-menu-btn.open svg { transform: rotate(180deg); }
+  .tb-dropdown {
+    display:none; flex-direction:column; gap:2px; position:absolute;
+    top:calc(100% + 8px); left:0; min-width:190px;
+    background:#1a1a1a; border:0.5px solid var(--border-hover);
+    border-radius: var(--radius); padding:6px; box-shadow:0 12px 28px rgba(0,0,0,0.45); z-index:60;
+  }
+  .tb-dropdown.open { display:flex; }
+  .tb-btn {
+    width:100%; background:transparent; border:0.5px solid transparent;
+    border-radius: var(--radius); color:var(--text); font-size:12px;
+    padding:7px 10px; cursor:pointer; display:flex; align-items:center; gap:8px;
+    text-align:left;
+  }
+  .tb-btn:hover { background: var(--surface2); }
+  .tb-btn svg { flex-shrink:0; }
+  .tb-shortcut { margin-left:auto; font-size:10px; color:var(--text-dim); }
+  .tb-sep-h { height:0.5px; background:var(--panel-border); margin:4px 2px; }
+  .tb-sep { width:0.5px; height:20px; background:var(--panel-border); flex-shrink:0; }
+  .tb-menu-footer {
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    padding:7px 10px; color:var(--text-dim); font-size:11px; text-decoration:none;
+    border-radius: var(--radius); transition: color .15s, background .15s;
+  }
+  .tb-menu-footer:hover { color:var(--text); background: var(--surface2); }
+  .tb-menu-footer-left { display:flex; align-items:center; gap:6px; }
+
+  /* HELP MODAL */
+  #help-overlay {
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5);
+    backdrop-filter: blur(4px); z-index:300; align-items:center; justify-content:center; padding:20px;
+  }
+  #help-overlay.show { display:flex; }
+  #help-modal {
+    position:relative; background: var(--panel); border:0.5px solid var(--border-hover);
+    border-radius:10px; max-width:460px; width:100%; padding:24px; color:var(--text);
+  }
+  #help-modal h2 { font-size:15px; font-weight:600; margin:0 0 16px; }
+  #help-modal ol {
+    display:flex; flex-direction:column; gap:12px; padding-left:20px;
+    font-size:13px; line-height:1.5; color:var(--text-dim); margin:0;
+  }
+  #help-modal ol strong { color:var(--text); }
+  #help-close {
+    position:absolute; top:12px; right:12px; background:none; border:none;
+    color:var(--text-dim); cursor:pointer; padding:4px; line-height:1;
+  }
+  #help-close:hover { color:var(--text); }
+  #tb-info { margin-left:auto; display:flex; align-items:center; gap:14px; font-size:11px; color:var(--text-dim); }
+  #tb-info b { color:var(--text); font-weight:600; }
+
+  #stage { position:absolute; top:52px; right:0; bottom:22px; left:250px; display:flex; flex-direction:column; }
+  #views { flex:1; min-height:0; display:flex; flex-direction:row; }
+  #canvas-wrap { flex:1; min-width:0; position:relative; overflow:hidden; }
+  #topview-wrap { flex: 0 0 auto; width:300px; min-width:0; position:relative; background:#101113; }
+  #viewsDivider {
+    width:6px; flex-shrink:0; cursor:col-resize;
+    background: var(--panel-border);
+  }
+  #viewsDivider:hover, #viewsDivider.dragging { background: var(--accent); }
+  canvas { display:block; width:100%; height:100%; cursor: grab; }
+  #c { position:absolute; }
+  canvas.dragging { cursor: grabbing; }
+  #topLabel {
+    position:absolute; top:8px; left:8px; z-index:5; pointer-events:none;
+    font-size:10px; letter-spacing:.08em; text-transform:uppercase; font-weight:600;
+    color: var(--text-dim); background:rgba(0,0,0,0.4); padding:3px 7px; border-radius:4px;
+  }
+
+  #frameOverlay {
+    position:absolute; pointer-events:none; z-index:5;
+  }
+  #frameMask {
+    position:absolute; inset:0;
+    box-shadow: 0 0 0 9999px rgba(0,0,0,0.66);
+  }
+  #frameLabel {
+    position:absolute; top:8px; left:8px;
+    font-size:11px; font-weight:600; letter-spacing:.03em;
+    color:#fff; background:rgba(0,0,0,0.55);
+    padding:3px 7px; border-radius:4px;
+  }
+  #handheldLabel {
+    display:none; position:absolute; top:8px; right:8px;
+    font-size:10px; font-weight:700; letter-spacing:.06em;
+    color:#fff; background:rgba(224,88,74,0.85);
+    padding:3px 7px; border-radius:4px;
+  }
+  #frameOverlay .grid-line {
+    position:absolute; background: var(--danger); opacity:0.75;
+  }
+  #frameOverlay .grid-line.v { top:0; bottom:0; width:1.5px; }
+  #frameOverlay .grid-line.h { left:0; right:0; height:1.5px; }
+  #frameOverlay .crosshair {
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    width:22px; height:22px;
+  }
+  #frameOverlay .crosshair::before, #frameOverlay .crosshair::after {
+    content:''; position:absolute; background: var(--danger);
+  }
+  #frameOverlay .crosshair::before { left:50%; top:0; bottom:0; width:1.5px; transform:translateX(-50%); }
+  #frameOverlay .crosshair::after { top:50%; left:0; right:0; height:1.5px; transform:translateY(-50%); }
+
+  #camHud {
+    position:absolute; left:10px; bottom:10px; z-index:6; width:200px;
+    background: rgba(10,10,10,0.6); border:0.5px solid rgba(255,255,255,0.15);
+    border-radius:8px; padding:10px 12px; backdrop-filter: blur(6px);
+    display:flex; flex-direction:column; gap:7px; pointer-events:auto;
+  }
+  #camHud.hidden { display:none; }
+  #camHud .hud-row { display:flex; align-items:center; gap:7px; }
+  #camHud .hud-label {
+    font-size:9px; letter-spacing:.06em; text-transform:uppercase;
+    color:rgba(255,255,255,0.55); width:36px; flex-shrink:0;
+  }
+  #camHud .hud-val { font-size:11px; color:#fff; width:40px; text-align:right; flex-shrink:0; }
+  #camHud input[type="range"] { flex:1; width:auto; accent-color:#fff; }
+  .hud-lens-btn {
+    width:20px; flex-shrink:0; margin:0; padding:3px 0; text-align:center;
+    background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.25); color:#fff;
+  }
+  .hud-lens-btn:hover { background:rgba(255,255,255,0.18); }
+  #camHudToggle {
+    position:absolute; left:10px; bottom:10px; z-index:6; width:auto;
+    margin:0; padding:5px 9px; font-size:10px;
+    background:rgba(10,10,10,0.55); color:#fff; border-color:rgba(255,255,255,0.25);
+    display:none; pointer-events:auto;
+  }
+  #camHudToggle.visible { display:block; }
+
+  #panel {
+    position:absolute; top:52px; left:0; bottom:22px; width:250px;
+    background: var(--panel); border-right:0.5px solid var(--panel-border);
+    padding:14px; overflow-y:auto; z-index: 10;
+  }
+  #page-footer {
+    position:fixed; left:0; right:0; bottom:0; height:22px; z-index:20;
+    display:flex; align-items:center; justify-content:center;
+    font-size:10.5px; color: var(--text-dim);
+    background: var(--panel); border-top:0.5px solid var(--panel-border);
+  }
+  #page-footer a { color: var(--text-dim); text-decoration:none; }
+  #page-footer a:hover { color: var(--text); text-decoration:underline; }
+  section {
+    margin-bottom:10px; border-radius: var(--radius);
+    border:0.5px solid var(--panel-border);
+    padding:10px 12px; background: rgba(255,255,255,0.015);
+  }
+  section h2 {
+    font-size:10px; letter-spacing:.08em; text-transform:uppercase;
+    color: var(--text-dim); margin:0; font-weight:600;
+    padding-bottom:0;
+    display:flex; align-items:center; justify-content:space-between;
+    cursor:pointer; user-select:none;
+  }
+  section:not(.collapsed) h2 { margin-bottom:10px; padding-bottom:6px; border-bottom:0.5px solid var(--panel-border); }
+  section h2:hover { color: var(--text); }
+  section h2::after {
+    content:'▾'; font-size:9px; color:var(--text-dim); margin-left:8px;
+  }
+  .h2-title { display:flex; align-items:center; gap:7px; }
+  .h2-icon { display:flex; flex-shrink:0; }
+  section.collapsed h2::after { content:'▸'; }
+  section.collapsed .section-body { display:none; }
+  button {
+    font-family: inherit; font-size:12px; color: var(--text);
+    background: transparent; border:0.5px solid var(--panel-border);
+    border-radius: var(--radius); padding:7px 10px; cursor:pointer;
+    width:100%; margin-bottom:6px; text-align:left;
+    transition: border-color .15s, color .15s, background .15s;
+  }
+  button:hover { border-color: var(--border-hover); background: var(--surface2); }
+  button.primary { border-color: var(--border-hover); color: var(--text); }
+  button.primary:hover { background: var(--surface2); }
+  button.danger { color: var(--danger); border-color: rgba(224,88,74,0.35); }
+  button.danger:hover { background: rgba(224,88,74,0.1); border-color: rgba(224,88,74,0.6); }
+  button.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  .row { display:flex; gap:6px; }
+  .row button { margin-bottom:0; }
+  .row.align { align-items:center; }
+  input[type="number"] {
+    font-family: inherit; font-size:12px; color: var(--text);
+    background: transparent; border:0.5px solid var(--panel-border);
+    border-radius: var(--radius); padding:5px 6px; width:52px;
+  }
+  input[type="range"] { width:100%; accent-color: var(--text); }
+  input[type="checkbox"] { accent-color: var(--text); }
+  .row input[type="range"] { flex:1; width:auto; min-width:0; }
+  .row .label-sm { font-size:11px; color:var(--text-dim); width:44px; flex-shrink:0; }
+  .swatches { display:flex; gap:6px; }
+  .swatch {
+    flex:1; height:28px; border-radius: var(--radius); cursor:pointer;
+    border:2px solid transparent;
+  }
+  .swatch.active { border-color: var(--select); }
+  #charList { display:flex; flex-direction:column; gap:5px; margin-bottom:8px; max-height:140px; overflow-y:auto; }
+  .char-item {
+    display:flex; align-items:center; gap:8px; padding:6px 8px;
+    border-radius: var(--radius); background: var(--surface2); font-size:12px; cursor:pointer;
+    border:0.5px solid transparent;
+  }
+  .char-item.selected { border-color: var(--select); background: rgba(236,72,153,0.1); }
+  .char-item.multi-selected { border-color: #f59e0b; box-shadow: inset 0 0 0 1px #f59e0b; }
+  .dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+  .multi-check { margin:0; flex-shrink:0; width:13px; height:13px; cursor:pointer; }
+  .char-item .label { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .rename-input {
+    flex:1; min-width:0; font-family:inherit; font-size:12px; color:var(--text);
+    background:var(--bg); border:0.5px solid var(--select); border-radius:3px;
+    padding:1px 4px; margin:0;
+  }
+  .char-item .pose-tag { font-size:10px; color:var(--text-dim); }
+  .hint { font-size:11px; color:var(--text-dim); line-height:1.5; margin-top:4px; }
+  #recDot {
+    display:inline-block; width:8px; height:8px; border-radius:50%;
+    background: var(--danger); margin-right:6px; vertical-align:middle;
+    animation: pulse 1s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+  #status { font-size:11px; color: var(--text-dim); margin-top:6px; min-height:14px; }
+  a.dl-link {
+    display:block; text-align:center; font-size:12.5px; padding:8px;
+    background: var(--text); color: var(--bg); border-radius: var(--radius);
+    text-decoration:none; font-weight:600; margin-top:6px;
+  }
+
+  #keyframePanel {
+    height:222px; flex-shrink:0; display:flex; flex-direction:column;
+    background: #232323; border-top:0.5px solid var(--panel-border);
+  }
+  #kfToolbar {
+    height:32px; flex-shrink:0; display:flex; flex-direction:row; align-items:center;
+    gap:8px; padding:0 10px; border-bottom:0.5px solid var(--panel-border);
+  }
+  #kfToolbar button { width:auto; margin-bottom:0; padding:5px 10px; }
+  #kfBody { flex:1; min-height:0; display:flex; flex-direction:row; }
+  #kfLabels {
+    width:110px; flex-shrink:0; border-right:0.5px solid var(--panel-border);
+    display:flex; flex-direction:column; overflow-y:auto;
+  }
+  #kfLabels .kf-row-label.header { height:22px; flex-shrink:0; }
+  .kf-row-label {
+    height:28px; flex-shrink:0; display:flex; align-items:center;
+    padding:0 10px; font-size:11.5px; color:var(--text-dim); cursor:pointer;
+    border-bottom:0.5px solid var(--panel-border); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .kf-row-label.active { color: var(--select); box-shadow: inset 0 0 0 1000px rgba(236,72,153,0.16); }
+  #kfLanesWrap { flex:1; position:relative; overflow-y:auto; overflow-x:hidden; }
+  #kfRuler {
+    height:22px; flex-shrink:0; position:relative; cursor:pointer;
+    border-bottom:0.5px solid var(--panel-border);
+    font-size:10px; color:var(--text-dim);
+  }
+  #kfRuler span { position:absolute; top:4px; }
+  #kfRuler span.end { right:6px; }
+  #kfRuler span.start { left:6px; }
+  .kf-lane {
+    height:28px; position:relative; border-bottom:0.5px solid var(--panel-border); cursor:pointer;
+  }
+  .kf-lane.active { box-shadow: inset 0 0 0 1000px rgba(236,72,153,0.14); }
+  .kf-mark {
+    position:absolute; top:50%; width:9px; height:9px; background: var(--text);
+    transform:translate(-50%,-50%) rotate(45deg); border-radius:2px; cursor:ew-resize; z-index:2; touch-action:none;
+  }
+  .kf-mark:hover { background: var(--danger); transform:translate(-50%,-50%) rotate(45deg) scale(1.3); }
+  #kfPlayhead {
+    position:absolute; top:0; bottom:0; width:1.5px; background: var(--danger);
+    pointer-events:none; z-index:3;
+  }
+</style>
+</head>
+<body>
+
+<div id="toolbar">
+  <div class="tb-menu">
+    <button class="tb-menu-btn" id="mainMenuBtn">
+      Blocking Tool
+      <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+    <div class="tb-dropdown" id="mainMenu">
+      <button class="tb-btn" id="menuSaveShot">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+        Save shot
+      </button>
+      <button class="tb-btn" id="menuExportShots">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export shots file
+      </button>
+      <button class="tb-btn" id="menuImportShots">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>
+        Import shots file
+      </button>
+      <div class="tb-sep-h"></div>
+      <button class="tb-btn" id="menuResetCam">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M3 12a9 9 0 109-9"/><path d="M3 4v8h8"/></svg>
+        Reset camera
+        <span class="tb-shortcut">R</span>
+      </button>
+      <div class="tb-sep-h"></div>
+      <button class="tb-btn" id="menuHelp" title="Quick guide to using the Blocking Tool">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        Help
+      </button>
+      <div class="tb-sep-h"></div>
+      <a class="tb-menu-footer" href="https://github.com/arnofaure/blocking" target="_blank" rel="noopener noreferrer" title="View source on GitHub">
+        <span class="tb-menu-footer-left">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+          GitHub
+        </span>
+        <span class="tb-version">v0.1.0</span>
+      </a>
+    </div>
+  </div>
+  <div class="tb-sep"></div>
+  <div id="tb-info">
+    <span id="tbShotCount">0 shots saved</span>
+    <span id="tbSelInfo">Nothing selected</span>
+    <b id="tbTimeInfo">0.0s / 6.0s</b>
+  </div>
+</div>
+
+<div id="stage">
+  <div id="views">
+    <div id="canvas-wrap">
+      <canvas id="c"></canvas>
+      <div id="frameOverlay">
+        <div id="frameMask"></div>
+        <div id="frameLabel"></div>
+        <div id="handheldLabel">HANDHELD</div>
+        <div class="crosshair frame-guide"></div>
+        <div class="grid-line v frame-guide" style="left:38.197%"></div>
+        <div class="grid-line v frame-guide" style="left:61.803%"></div>
+        <div class="grid-line h frame-guide" style="top:38.197%"></div>
+        <div class="grid-line h frame-guide" style="top:61.803%"></div>
+      </div>
+      <div id="camHud">
+        <div class="hud-row" style="justify-content:flex-end; margin-bottom:-3px">
+          <button class="hud-lens-btn" id="camHudClose" style="width:20px" title="Hide HUD">×</button>
+        </div>
+        <div class="hud-row">
+          <span class="hud-label">Height</span>
+          <input type="range" id="hudHeight" min="0.2" max="8" step="0.05" value="1">
+          <span class="hud-val" id="hudHeightVal">1.0m</span>
+        </div>
+        <div class="hud-row">
+          <span class="hud-label">Tilt</span>
+          <input type="range" id="hudTilt" min="-89" max="89" step="1" value="34">
+          <span class="hud-val" id="hudTiltVal">34°</span>
+        </div>
+        <div class="hud-row">
+          <span class="hud-label">Pan</span>
+          <input type="range" id="hudPan" min="0" max="360" step="1" value="45">
+          <span class="hud-val" id="hudPanVal">45°</span>
+        </div>
+        <div class="hud-row">
+          <span class="hud-label">Lens</span>
+          <button class="hud-lens-btn" id="hudLensPrev">‹</button>
+          <span class="hud-val" id="hudLensVal">35mm</span>
+          <button class="hud-lens-btn" id="hudLensNext">›</button>
+        </div>
+      </div>
+      <button id="camHudToggle" title="Show/hide camera HUD">HUD</button>
+    </div>
+    <div id="viewsDivider"></div>
+    <div id="topview-wrap">
+      <canvas id="topCanvas"></canvas>
+      <div id="topLabel">Top view</div>
+    </div>
+  </div>
+  <div id="keyframePanel">
+    <div id="kfToolbar">
+      <button id="tlPlay">▶ Play</button>
+      <button id="tlAddKey">+ Keyframe</button>
+      <button class="danger" id="tlDelKey">Delete keyframe</button>
+      <span class="hint" style="margin:0">Duration</span>
+      <input type="number" id="tlDuration" value="6" min="1" max="60" step="1">
+      <label class="hint" style="margin:0; display:flex; align-items:center; gap:5px" title="Smooth: a continuous spline through all keyframes. Off: eased stop at each keyframe.">
+        <input type="checkbox" id="smoothToggle" checked> Smooth
+      </label>
+      <span class="hint" style="margin:0 0 0 auto" id="kfToolbarTime">0.0s</span>
+    </div>
+    <div id="kfBody">
+      <div id="kfLabels">
+        <div class="kf-row-label header"></div>
+      </div>
+      <div id="kfLanesWrap">
+        <div id="kfRuler"><span class="start">0s</span><span class="end" id="kfRulerEnd">6s</span></div>
+        <div id="kfPlayhead"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="panel">
+  <button id="collapseAllBtn">Collapse all sections</button>
+  <section>
+    <h2>Characters / Objects</h2>
+    <button class="primary" id="addChar">+ Add character</button>
+    <div id="charList"></div>
+    <div class="row" style="margin-bottom:6px">
+      <button id="poseToggle" disabled>Stand / Sit</button>
+    </div>
+    <button class="danger" id="delChar" disabled>Delete</button>
+    <button id="groupBtn" disabled>Group selected</button>
+    <div class="hint">Drag a character or object to move it. Drag empty space to orbit the camera. In the top view, drag the white camera marker to move the camera. Double-click a name in the list to rename it. Check the boxes next to two or more items (or Ctrl/Cmd-click them), then "Group selected" to move and keyframe them together.</div>
+    <div class="row align" style="margin-top:8px">
+      <span class="label-sm">Units</span>
+      <select id="sizeUnit" style="flex:1">
+        <option value="m">Meters</option>
+        <option value="ft">Feet &amp; inches</option>
+        <option value="in">Inches</option>
+      </select>
+    </div>
+    <div class="row" style="margin-top:10px; margin-bottom:6px">
+      <button id="addCar">+ Car</button>
+      <button id="addBus">+ Bus</button>
+    </div>
+    <div class="row" style="margin-bottom:6px">
+      <button id="addWall">+ Wall</button>
+      <button id="addHouse">+ House</button>
+    </div>
+    <div class="row">
+      <button id="addTable">+ Table</button>
+      <button id="addChair">+ Chair</button>
+    </div>
+    <div class="row align" id="rotationRow" style="margin-top:8px; display:none">
+      <span class="label-sm">Rotate</span>
+      <input type="range" id="objRotation" min="0" max="360" step="1" value="0">
+      <span class="hint" style="margin:0; width:34px; text-align:right" id="objRotationLabel">0°</span>
+    </div>
+    <div class="row align" id="propScaleRow" style="margin-top:8px; display:none; flex-direction:column; align-items:stretch; gap:6px">
+      <div class="row align">
+        <span class="label-sm">Width</span>
+        <input type="range" id="propWidth" min="0.4" max="3" step="0.05" value="1">
+        <span class="hint" style="margin:0; width:52px; text-align:right" id="propWidthLabel">1.0m</span>
+      </div>
+      <div class="row align">
+        <span class="label-sm">Height</span>
+        <input type="range" id="propHeight" min="0.4" max="3" step="0.05" value="1">
+        <span class="hint" style="margin:0; width:52px; text-align:right" id="propHeightLabel">1.0m</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Background</h2>
+    <div class="swatches">
+      <div class="swatch active" data-bg="#aeb0b4" style="background:#aeb0b4"></div>
+      <div class="swatch" data-bg="#dedede" style="background:#dedede"></div>
+      <div class="swatch" data-bg="#3a3a3a" style="background:#3a3a3a"></div>
+      <div class="swatch" data-bg="#0c0c0c" style="background:#0c0c0c"></div>
+    </div>
+    <label class="hint" style="display:flex; align-items:center; gap:6px; margin-top:10px">
+      <input type="checkbox" id="gridToggle" checked> Show floor grid
+    </label>
+  </section>
+
+  <section>
+    <h2>Lens</h2>
+    <div class="row" style="margin-bottom:6px">
+      <button class="lens-btn" data-mm="14">14mm</button>
+      <button class="lens-btn" data-mm="18">18mm</button>
+      <button class="lens-btn" data-mm="24">24mm</button>
+    </div>
+    <div class="row" style="margin-bottom:6px">
+      <button class="lens-btn active" data-mm="35">35mm</button>
+      <button class="lens-btn" data-mm="50">50mm</button>
+      <button class="lens-btn" data-mm="85">85mm</button>
+    </div>
+    <div class="row">
+      <button class="lens-btn" data-mm="100">100mm</button>
+      <button class="lens-btn" data-mm="135">135mm</button>
+      <button class="lens-btn" data-mm="200">200mm</button>
+    </div>
+    <div class="hint">Focal length on a full-frame (36×24mm) sensor — sets the camera's field of view.</div>
+  </section>
+
+  <section>
+    <h2>Frame</h2>
+    <div class="row" style="margin-bottom:6px">
+      <button class="frame-btn active" data-ratio="">Free</button>
+      <button class="frame-btn" data-ratio="1.7778">16:9</button>
+    </div>
+    <div class="row">
+      <button class="frame-btn" data-ratio="1.43">1.43</button>
+      <button class="frame-btn" data-ratio="1.85">1.85</button>
+    </div>
+    <div class="row" style="margin-top:6px">
+      <button class="frame-btn" data-ratio="2.39">2.39</button>
+    </div>
+    <label class="hint" style="display:flex; align-items:center; gap:6px; margin-top:10px">
+      <input type="checkbox" id="frameGuides"> Center cross + phi grid
+    </label>
+  </section>
+
+
+  <section>
+    <h2>Camera position</h2>
+    <div class="row align" style="margin-bottom:6px">
+      <span class="label-sm">Height</span>
+      <input type="range" id="camHeight" min="0.2" max="8" step="0.05" value="1">
+      <span class="hint" style="margin:0; width:34px; text-align:right" id="camHeightLabel">1.0m</span>
+    </div>
+    <div class="row align" style="margin-bottom:6px">
+      <span class="label-sm">Tilt</span>
+      <input type="range" id="camTilt" min="-89" max="89" step="1" value="34">
+      <span class="hint" style="margin:0; width:34px; text-align:right" id="camTiltLabel">34°</span>
+    </div>
+    <div class="row align">
+      <span class="label-sm">Pan</span>
+      <input type="range" id="camPan" min="0" max="360" step="1" value="45">
+      <span class="hint" style="margin:0; width:34px; text-align:right" id="camPanLabel">45°</span>
+    </div>
+    <div class="hint">Height = height of the point the camera looks at. Tilt = angle above the horizon (negative = camera below, looking up — contre-plongée). Pan = angle around the subject.</div>
+  </section>
+
+  <section>
+    <h2>Camera moves</h2>
+    <div class="row" style="margin-bottom:6px">
+      <button id="mvPushIn">Dolly in</button>
+      <button id="mvPullOut">Dolly out</button>
+    </div>
+    <div class="row" style="margin-bottom:6px">
+      <button id="mvOrbitL">Orbit left</button>
+      <button id="mvOrbitR">Orbit right</button>
+    </div>
+    <button id="mvReset">Reset camera</button>
+    <label class="hint" style="display:flex; align-items:center; gap:6px; margin-top:10px">
+      <input type="checkbox" id="handheldEnable"> Handheld camera (note only, not simulated)
+    </label>
+  </section>
+
+  <section>
+    <h2>Camera path</h2>
+    <button id="pathDraw">Draw path</button>
+    <div class="row align" style="margin-bottom:6px">
+      <span class="hint" style="margin:0">Height</span>
+      <input type="number" id="pathHeight" value="1.6" min="0.2" max="10" step="0.1">
+      <label class="hint" style="margin:0; margin-left:auto; display:flex; align-items:center; gap:4px">
+        <input type="checkbox" id="pathFollow"> follow
+      </label>
+    </div>
+    <button class="danger" id="pathClear">Clear path</button>
+    <div class="hint">Enable "Draw path" (or just hold Shift while dragging) then drag on the floor, in either view, to trace the path. Check "follow" so the camera travels the path over the timeline duration.</div>
+    <div class="row" style="margin-top:8px">
+      <span class="hint" style="margin:0 6px 0 0; align-self:center">Drive camera with:</span>
+    </div>
+    <div class="row" style="margin-top:4px">
+      <button class="drive-btn active" data-mode="keyframes">Keyframes</button>
+      <button class="drive-btn" data-mode="path">Path</button>
+    </div>
+    <div class="hint">If both a camera path and camera keyframes exist, this chooses which one drives the camera during playback.</div>
+  </section>
+
+  <section>
+    <h2>Shots</h2>
+    <button class="primary" id="saveShot">+ Save shot</button>
+    <div id="shotList"></div>
+    <div class="row" style="margin-top:6px">
+      <button id="exportShots">Export file</button>
+      <button id="importShotsBtn">Import file</button>
+    </div>
+    <input type="file" id="importShotsFile" accept="application/json" style="display:none">
+    <div class="hint">Saves the camera, characters, objects, keyframes and path so you can recall this setup later. Export/import to back up or share the shot list as a file.</div>
+  </section>
+
+  <section>
+    <h2>Export</h2>
+    <button class="primary" id="recBtn">● Record</button>
+    <div id="status"></div>
+    <div id="dlWrap"></div>
+    <div class="hint">Plays the whole shot from the start and records it automatically, stopping at the end of the timeline.</div>
+  </section>
+</div>
+
+<div id="help-overlay">
+  <div id="help-modal">
+    <button id="help-close" title="Close">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </button>
+    <h2>How to use the Blocking Tool</h2>
+    <ol>
+      <li><strong>Everything stays on your device.</strong> The tool runs entirely in your browser — nothing is uploaded, no account needed.</li>
+      <li><strong>Add characters and objects</strong> from the left panel, then drag them in either the main view or the top view to place them. Drag empty space to orbit the camera; drag the white marker in the top view to move the camera itself.</li>
+      <li><strong>Camera.</strong> Use the Camera position sliders (or the on-screen HUD in the main view) for height/tilt/pan, and the Lens presets for focal length. Draw a camera path by holding Shift while dragging on the floor.</li>
+      <li><strong>Keyframes.</strong> Select a character, object, camera, or group, move the playhead, then "+ Keyframe". Drag keyframe marks on the timeline to retime them.</li>
+      <li><strong>Group.</strong> Check two or more items in the list (or Ctrl/Cmd-click them) and hit "Group selected" to move and keyframe them together.</li>
+      <li><strong>Lock</strong> the selected item in place with the <strong>L</strong> key so it can't be dragged by accident.</li>
+      <li><strong>Save your work</strong> with "+ Save shot", export the shot list as a file to back it up, and use Record to export a video of the timeline.</li>
+    </ol>
+    <p style="margin-top:16px;font-size:11px;color:var(--text-dim);line-height:1.6;">Bug, idea, or feature request? I'd love to hear from you —<br><a href="mailto:info@arnofaure.com" style="color:var(--text-dim);">info@arnofaure.com</a></p>
+  </div>
+</div>
+
+<footer id="page-footer">
+  &copy; 2026 Created for the love of stories by <a href="https://arnofaure.com" target="_blank" rel="noopener noreferrer">Arno Faure</a> &middot; Licensed under <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener noreferrer">CC BY-NC 4.0</a>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+  // ---------- Collapsible left-panel sections ----------
+  const SECTION_ICONS = {
+    'Characters / Objects': { color:'#4a7fe8', svg:'<circle cx="12" cy="7" r="4"/><path d="M5.5 21a7.5 7.5 0 0113 0"/>' },
+    'Background': { color:'#8b5cf6', svg:'<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>' },
+    'Frame':      { color:'#14b8a6', svg:'<path d="M6 2v14a2 2 0 002 2h14"/><path d="M18 22V8a2 2 0 00-2-2H2"/>' },
+    'Lens':       { color:'#f59e0b', svg:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5"/>' },
+    'Camera position': { color:'#22c55e', svg:'<circle cx="12" cy="12" r="9"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/>' },
+    'Camera moves': { color:'#06b6d4', svg:'<polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/>' },
+    'Camera path': { color:'#f97316', svg:'<polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/>' },
+    'Shots':      { color:'#a855f7', svg:'<path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/>' },
+    'Export':     { color:'#6366f1', svg:'<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>' }
+  };
+
+  function hexToRgba(hex, a){
+    const n = parseInt(hex.slice(1), 16);
+    return 'rgba(' + ((n>>16)&255) + ',' + ((n>>8)&255) + ',' + (n&255) + ',' + a + ')';
+  }
+
+  document.querySelectorAll('#panel > section').forEach(section => {
+    const h2 = section.querySelector('h2');
+    if (!h2) return;
+    const body = document.createElement('div');
+    body.className = 'section-body';
+    Array.from(section.children).forEach(el => { if (el !== h2) body.appendChild(el); });
+    section.appendChild(body);
+    h2.onclick = () => { section.classList.toggle('collapsed'); updateCollapseAllBtn(); };
+    section.classList.add('collapsed');
+
+    const info = SECTION_ICONS[h2.textContent.trim()];
+    if (info){
+      const wrapper = document.createElement('span');
+      wrapper.className = 'h2-title';
+      const icon = document.createElement('span');
+      icon.className = 'h2-icon';
+      icon.style.color = info.color;
+      icon.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + info.svg + '</svg>';
+      const label = document.createElement('span');
+      label.textContent = h2.textContent;
+      wrapper.appendChild(icon);
+      wrapper.appendChild(label);
+      h2.textContent = '';
+      h2.appendChild(wrapper);
+      section.style.borderColor = hexToRgba(info.color, 0.75);
+      section.style.background = hexToRgba(info.color, 0.09);
+    }
+  });
+
+  const collapseAllBtn = document.getElementById('collapseAllBtn');
+  function updateCollapseAllBtn(){
+    const anyExpanded = Array.from(document.querySelectorAll('#panel > section')).some(s => !s.classList.contains('collapsed'));
+    collapseAllBtn.textContent = anyExpanded ? 'Collapse all sections' : 'Expand all sections';
+  }
+  collapseAllBtn.onclick = () => {
+    const anyExpanded = Array.from(document.querySelectorAll('#panel > section')).some(s => !s.classList.contains('collapsed'));
+    document.querySelectorAll('#panel > section').forEach(s => s.classList.toggle('collapsed', anyExpanded));
+    updateCollapseAllBtn();
+  };
+  updateCollapseAllBtn();
+
+  const canvas = document.getElementById('c');
+  const wrap = document.getElementById('canvas-wrap');
+
+  // ---------- Scene setup ----------
+  const scene = new THREE.Scene();
+  let currentBg = '#aeb0b4';
+  scene.background = new THREE.Color(currentBg);
+
+  // focal length (mm, full-frame 36x24 sensor) -> vertical FOV (deg)
+  function mmToVFov(mm){ return 2 * Math.atan(12 / mm) * 180 / Math.PI; }
+
+  const camera = new THREE.PerspectiveCamera(mmToVFov(35), 1, 0.1, 2000);
+
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, preserveDrawingBuffer:true });
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  // ---------- Top-down (2D) view ----------
+  const topCanvas = document.getElementById('topCanvas');
+  const topWrap = document.getElementById('topview-wrap');
+  const topRenderer = new THREE.WebGLRenderer({ canvas: topCanvas, antialias:true });
+  let topZoom = 10; // half-height of the ortho frustum, in meters
+  const topTarget = new THREE.Vector3(0, 0, 0); // world point the top-down view is centered on
+  const topCamera = new THREE.OrthographicCamera(-10, 10, 10, -10, 0.1, 2000);
+  topCamera.up.set(0, 0, -1);
+
+  function updateTopCameraPosition(){
+    topCamera.position.set(topTarget.x, 50, topTarget.z);
+    topCamera.lookAt(topTarget.x, 0, topTarget.z);
+  }
+  updateTopCameraPosition();
+
+  function updateTopViewport(){
+    const w = topWrap.clientWidth, h = topWrap.clientHeight;
+    topRenderer.setSize(w, h, false);
+    topRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    const aspect = w / (h || 1);
+    topCamera.left = -topZoom * aspect;
+    topCamera.right = topZoom * aspect;
+    topCamera.top = topZoom;
+    topCamera.bottom = -topZoom;
+    topCamera.updateProjectionMatrix();
+  }
+
+  topCanvas.addEventListener('wheel', (e)=>{
+    e.preventDefault();
+    topZoom = Math.max(1, Math.min(40, topZoom + e.deltaY * 0.01));
+    updateTopViewport();
+  }, { passive:false });
+
+  // ---------- Frame (viewfinder) ----------
+  let frameAspect = null; // null = free, otherwise target aspect ratio
+  let viewport = { x:0, y:0, w:0, h:0 };
+  const frameOverlay = document.getElementById('frameOverlay');
+  const frameMask = document.getElementById('frameMask');
+  const frameLabel = document.getElementById('frameLabel');
+  const frameGuideEls = Array.from(document.querySelectorAll('.frame-guide'));
+  let frameGuidesOn = false;
+  frameGuideEls.forEach(el => el.style.display = 'none');
+  let frameLabelText = '';
+
+  const SENSOR_ASPECT = 36 / 24; // fixed full-frame sensor shape — the shot's
+  // framing must never depend on how wide the panel/window happens to be, so
+  // the canvas itself is letterboxed to this ratio inside canvas-wrap instead
+  // of stretching to fill whatever space is left beside the top view.
+
+  function updateViewport(){
+    const wrapW = wrap.clientWidth, wrapH = wrap.clientHeight;
+    let w = wrapW, h = wrapW / SENSOR_ASPECT;
+    if (h > wrapH){ h = wrapH; w = wrapH * SENSOR_ASPECT; }
+    w = Math.round(w); h = Math.round(h);
+    const left = Math.round((wrapW - w) / 2), top = Math.round((wrapH - h) / 2);
+
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    canvas.style.left = left + 'px';
+    canvas.style.top = top + 'px';
+
+    renderer.setSize(w, h, false);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+    // Camera always renders the full sensor. The selected delivery ratio is a
+    // crop guide drawn on top — cropping a centered perspective render is
+    // optically identical to shooting at the narrower aspect.
+    viewport.x = 0; viewport.y = 0; viewport.w = w; viewport.h = h;
+    camera.aspect = SENSOR_ASPECT;
+
+    let fx = 0, fy = 0, fw = w, fh = h;
+    if (frameAspect){
+      fw = w; fh = w / frameAspect;
+      if (fh > h){ fh = h; fw = h * frameAspect; }
+      fx = Math.round((w - fw) / 2);
+      fy = Math.round((h - fh) / 2);
+      fw = Math.round(fw);
+      fh = Math.round(fh);
+    }
+
+    camera.updateProjectionMatrix();
+    frameOverlay.style.left = (left + fx) + 'px';
+    frameOverlay.style.top = (top + fy) + 'px';
+    frameOverlay.style.width = fw + 'px';
+    frameOverlay.style.height = fh + 'px';
+    frameMask.style.display = frameAspect ? 'block' : 'none';
+    frameLabel.style.display = frameAspect ? 'block' : 'none';
+    frameLabel.textContent = frameLabelText;
+  }
+  function resize(){ updateViewport(); updateTopViewport(); }
+  window.addEventListener('resize', resize);
+
+  // ---------- Resizable divider between camera view and top view ----------
+  const viewsDivider = document.getElementById('viewsDivider');
+  const viewsEl = document.getElementById('views');
+  let dividerDragging = false;
+  viewsDivider.addEventListener('pointerdown', (e)=>{
+    dividerDragging = true;
+    viewsDivider.classList.add('dragging');
+    viewsDivider.setPointerCapture(e.pointerId);
+  });
+  viewsDivider.addEventListener('pointermove', (e)=>{
+    if (!dividerDragging) return;
+    const rect = viewsEl.getBoundingClientRect();
+    let w = rect.right - e.clientX;
+    w = Math.max(160, Math.min(rect.width - 240, w));
+    topWrap.style.width = w + 'px';
+    resize();
+  });
+  viewsDivider.addEventListener('pointerup', ()=>{
+    dividerDragging = false;
+    viewsDivider.classList.remove('dragging');
+  });
+
+  document.getElementById('frameGuides').onchange = (e) => {
+    frameGuidesOn = e.target.checked;
+    frameGuideEls.forEach(el => el.style.display = frameGuidesOn ? '' : 'none');
+  };
+
+  // lights
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 0.9);
+  scene.add(hemi);
+  const dir = new THREE.DirectionalLight(0xffffff, 0.9);
+  dir.position.set(5, 10, 6);
+  dir.castShadow = true;
+  dir.shadow.mapSize.set(1024,1024);
+  dir.shadow.camera.left = -10; dir.shadow.camera.right = 10;
+  dir.shadow.camera.top = 10; dir.shadow.camera.bottom = -10;
+  scene.add(dir);
+
+  // floor — oversized so it reads as an infinite ground plane, mid-grey like a classic 3D viewport
+  const floorGeo = new THREE.PlaneGeometry(1000, 1000);
+  const floorMat = new THREE.MeshStandardMaterial({ color: 0x5c5d60, roughness:0.95 });
+  const floor = new THREE.Mesh(floorGeo, floorMat);
+  floor.rotation.x = -Math.PI/2;
+  floor.receiveShadow = true;
+  scene.add(floor);
+
+  // single uniform grid (1m cells) across the whole floor — no seams
+  const grid = new THREE.GridHelper(1000, 1000, 0x7a7b7e, 0x6a6b6e);
+  grid.position.y = 0.001;
+  scene.add(grid);
+
+  // camera position/facing marker, mainly useful in the top-down view
+  const camMarkerGeo = new THREE.ConeGeometry(0.35, 0.9, 3);
+  camMarkerGeo.rotateX(-Math.PI/2); // apex now points along local -Z
+  const camMarker = new THREE.Mesh(camMarkerGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }));
+  camMarker.renderOrder = 5;
+  // marker is only meant to be seen in the top-down view — keep it off the main
+  // camera's layer so it can't fill the frame when that camera dips below the grid
+  camMarker.layers.set(1);
+  topCamera.layers.enable(1);
+  scene.add(camMarker);
+
+  // ---------- Orbit camera (custom, minimal) ----------
+  const target = new THREE.Vector3(0, 1, 0);
+  let radius = 8, theta = Math.PI/4, phi = Math.PI/3.2;
+  function clampPhi(p){ return Math.max(0.02, Math.min(Math.PI - 0.02, p)); }
+
+  const camHeightInput = document.getElementById('camHeight');
+  const camHeightLabel = document.getElementById('camHeightLabel');
+  const camTiltInput = document.getElementById('camTilt');
+  const camTiltLabel = document.getElementById('camTiltLabel');
+  const camPanInput = document.getElementById('camPan');
+  const camPanLabel = document.getElementById('camPanLabel');
+
+  const hudHeight = document.getElementById('hudHeight');
+  const hudHeightVal = document.getElementById('hudHeightVal');
+  const hudTilt = document.getElementById('hudTilt');
+  const hudTiltVal = document.getElementById('hudTiltVal');
+  const hudPan = document.getElementById('hudPan');
+  const hudPanVal = document.getElementById('hudPanVal');
+  const hudLensVal = document.getElementById('hudLensVal');
+
+  function syncCamUI(){
+    camHeightInput.value = target.y;
+    camHeightLabel.textContent = target.y.toFixed(1) + 'm';
+    const elevDeg = Math.round(90 - phi * 180 / Math.PI);
+    camTiltInput.value = elevDeg;
+    camTiltLabel.textContent = elevDeg + '°';
+    let panDeg = Math.round(theta * 180 / Math.PI) % 360;
+    if (panDeg < 0) panDeg += 360;
+    camPanInput.value = panDeg;
+    camPanLabel.textContent = panDeg + '°';
+
+    hudHeight.value = target.y;
+    hudHeightVal.textContent = target.y.toFixed(1) + 'm';
+    hudTilt.value = elevDeg;
+    hudTiltVal.textContent = elevDeg + '°';
+    hudPan.value = panDeg;
+    hudPanVal.textContent = panDeg + '°';
+    hudLensVal.textContent = Math.round(currentLensMM()) + 'mm';
+  }
+
+  function updateCamMarker(){
+    camMarker.position.set(camera.position.x, 0.05, camera.position.z);
+    camMarker.lookAt(target.x, 0.05, target.z);
+  }
+
+  // "Handheld" is a shot note only (shown as a label on the camera view) — it is
+  // not simulated, so it never affects the actual render or the exported video.
+  document.getElementById('handheldEnable').onchange = (e) => {
+    document.getElementById('handheldLabel').style.display = e.target.checked ? 'block' : 'none';
+  };
+
+  function updateCameraFromSpherical(){
+    phi = clampPhi(phi);
+    camera.position.set(
+      target.x + radius * Math.sin(phi) * Math.sin(theta),
+      target.y + radius * Math.cos(phi),
+      target.z + radius * Math.sin(phi) * Math.cos(theta)
+    );
+    camera.lookAt(target);
+    syncCamUI();
+    updateCamMarker();
+  }
+  updateCameraFromSpherical();
+
+  camHeightInput.oninput = (e) => {
+    target.y = parseFloat(e.target.value);
+    updateCameraFromSpherical();
+  };
+  camTiltInput.oninput = (e) => {
+    const elevDeg = parseFloat(e.target.value);
+    phi = (90 - elevDeg) * Math.PI / 180;
+    updateCameraFromSpherical();
+  };
+  camPanInput.oninput = (e) => {
+    theta = parseFloat(e.target.value) * Math.PI / 180;
+    updateCameraFromSpherical();
+  };
+
+  hudHeight.oninput = (e) => {
+    target.y = parseFloat(e.target.value);
+    updateCameraFromSpherical();
+  };
+  hudTilt.oninput = (e) => {
+    const elevDeg = parseFloat(e.target.value);
+    phi = (90 - elevDeg) * Math.PI / 180;
+    updateCameraFromSpherical();
+  };
+  hudPan.oninput = (e) => {
+    theta = parseFloat(e.target.value) * Math.PI / 180;
+    updateCameraFromSpherical();
+  };
+  document.getElementById('camHudClose').onclick = () => {
+    document.getElementById('camHud').classList.add('hidden');
+    document.getElementById('camHudToggle').classList.add('visible');
+  };
+  document.getElementById('camHudToggle').onclick = () => {
+    document.getElementById('camHud').classList.remove('hidden');
+    document.getElementById('camHudToggle').classList.remove('visible');
+  };
+
+  // ---------- Characters ----------
+  const characters = [];
+  const objects = []; // simple props: car / bus / wall
+  const groups = []; // logical groupings of characters/objects — moved and keyframed together
+  const multiSelectSet = new Set(); // pending selection for "Group selected"
+  let lastClickInfo = { obj: null, t: 0 }; // for double-click-to-rename detection
+  let groupCounter = 1;
+  let selected = null;
+  const palette = [0xd98e4a, 0x5b8bd9, 0x7fb069, 0xc1554a, 0xb489d6, 0xd9c34a];
+  let colorIdx = 0;
+
+  function groupOf(obj){
+    return groups.find(g => g.members.includes(obj)) || null;
+  }
+  function createGroup(members){
+    const group = { isCharGroup:true, members: members.slice(), userData: { name: 'Group ' + (groupCounter++), locked:false } };
+    groups.push(group);
+    return group;
+  }
+  function dissolveGroup(group){
+    const i = groups.indexOf(group);
+    if (i >= 0) groups.splice(i, 1);
+  }
+
+  function buildCharacter(color){
+    const root = new THREE.Group();
+    root.userData.pose = 'stand';
+
+    const mat = new THREE.MeshStandardMaterial({ color, roughness:0.6 });
+    const matDim = new THREE.MeshStandardMaterial({ color, roughness:0.6, emissive:0x000000 });
+
+    const legs = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.9, 12), mat);
+    legs.castShadow = true;
+    root.add(legs);
+
+    const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.19, 0.7, 12), mat);
+    torso.castShadow = true;
+    root.add(torso);
+
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 16), mat);
+    head.castShadow = true;
+    root.add(head);
+
+    // eyes + mouth on the front of the head, so front/back reads clearly at a glance
+    const faceMat = new THREE.MeshBasicMaterial({ color: 0x1a1210 });
+    const eyeGeo = new THREE.SphereGeometry(0.022, 8, 8);
+    const eyeL = new THREE.Mesh(eyeGeo, faceMat);
+    eyeL.position.set(-0.065, 0.02, 0.163);
+    head.add(eyeL);
+    const eyeR = new THREE.Mesh(eyeGeo, faceMat);
+    eyeR.position.set(0.065, 0.02, 0.163);
+    head.add(eyeR);
+    const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.016, 0.012), faceMat);
+    mouth.position.set(0, -0.06, 0.168);
+    head.add(mouth);
+
+    const armGeo = new THREE.CylinderGeometry(0.06, 0.06, 0.6, 8);
+    const armL = new THREE.Mesh(armGeo, mat); armL.castShadow = true;
+    const armR = new THREE.Mesh(armGeo, mat); armR.castShadow = true;
+    root.add(armL, armR);
+
+    const seat = new THREE.Mesh(
+      new THREE.BoxGeometry(0.5, 0.42, 0.5),
+      new THREE.MeshStandardMaterial({ color:0x555555, roughness:0.8 })
+    );
+    seat.castShadow = true; seat.receiveShadow = true;
+    seat.visible = false;
+    root.add(seat);
+
+    root.userData.parts = { legs, torso, head, armL, armR, seat, mat, matDim };
+    applyPose(root, 'stand');
+    return root;
+  }
+
+  const ARM_LEN = 0.6;
+
+  function applyPose(root, pose){
+    const { legs, torso, head, armL, armR, seat } = root.userData.parts;
+    root.userData.pose = pose;
+    if (pose === 'stand'){
+      legs.scale.set(1,1,1);
+      legs.position.y = 0.45;
+      torso.position.y = 0.9 + 0.35;
+      head.position.y = 0.9 + 0.7 + 0.18;
+      const shoulderY = torso.position.y + 0.3;
+      armL.position.set(-0.28, shoulderY - ARM_LEN/2, 0);
+      armR.position.set(0.28, shoulderY - ARM_LEN/2, 0);
+      armL.rotation.z = 0.05; armR.rotation.z = -0.05;
+      seat.visible = false;
+    } else {
+      legs.scale.set(1, 0.42, 1);
+      legs.position.y = 0.19;
+      torso.position.y = 0.38 + 0.35;
+      head.position.y = 0.38 + 0.7 + 0.18;
+      const shoulderY = torso.position.y + 0.3;
+      armL.position.set(-0.28, shoulderY - ARM_LEN/2, 0);
+      armR.position.set(0.28, shoulderY - ARM_LEN/2, 0);
+      armL.rotation.z = 0.05; armR.rotation.z = -0.05;
+      seat.position.y = 0.21;
+      seat.visible = true;
+    }
+  }
+
+  function addCharacter(x, z){
+    pushUndo();
+    const color = palette[colorIdx % palette.length]; colorIdx++;
+    const root = buildCharacter(color);
+    root.position.set(typeof x === 'number' ? x : (Math.random()*2-1), 0, typeof z === 'number' ? z : (Math.random()*2-1));
+    root.userData.name = 'Char ' + (characters.length + 1);
+    root.userData.keyframes = [];
+    scene.add(root);
+    characters.push(root);
+    select(root);
+    refreshList();
+  }
+
+  let sizeUnit = 'm'; // 'm' | 'ft' | 'in'
+  function formatLength(m){
+    if (sizeUnit === 'ft'){
+      const totalIn = m * 39.3701;
+      let ft = Math.floor(totalIn / 12);
+      let inch = Math.round(totalIn - ft * 12);
+      if (inch === 12){ ft += 1; inch = 0; }
+      return ft + "'" + inch + '"';
+    }
+    if (sizeUnit === 'in') return (m * 39.3701).toFixed(1) + '"';
+    return m.toFixed(2) + 'm';
+  }
+  function refreshPropLabels(){
+    if (!selected || selected === 'camera' || !selected.userData.isProp) return;
+    const size = PROP_SIZES[selected.userData.type];
+    document.getElementById('propWidthLabel').textContent = formatLength(size.w * selected.scale.x);
+    document.getElementById('propHeightLabel').textContent = formatLength(size.h * selected.scale.y);
+  }
+  document.getElementById('sizeUnit').onchange = (e) => {
+    sizeUnit = e.target.value;
+    refreshPropLabels();
+  };
+
+  const PROP_SIZES = {
+    car:   { w:1.8, h:1.4, d:4.2, color:0x5b8bd9 },
+    bus:   { w:2.5, h:3.0, d:9.0, color:0xd9c34a },
+    wall:  { w:4.0, h:2.5, d:0.2, color:0x8a8d92 },
+    house: { w:6.0, h:4.5, d:7.0, color:0xb08968 },
+    table: { w:1.4, h:0.75, d:0.8, color:0x8a6a4a },
+    chair: { w:0.5, h:0.9, d:0.5, color:0x6a5038 }
+  };
+
+  function updatePropY(mesh){
+    mesh.position.y = mesh.userData.baseHeight / 2 * mesh.scale.y;
+  }
+
+  function addProp(type, x, z){
+    pushUndo();
+    const size = PROP_SIZES[type];
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(size.w, size.h, size.d),
+      new THREE.MeshStandardMaterial({ color: size.color, roughness:0.75 })
+    );
+    mesh.castShadow = true; mesh.receiveShadow = true;
+    mesh.userData.baseHeight = size.h;
+    mesh.position.set(typeof x === 'number' ? x : (Math.random()*4-2), size.h/2, typeof z === 'number' ? z : (Math.random()*4-2));
+    mesh.userData.isProp = true;
+    mesh.userData.keyframes = [];
+    const count = objects.filter(o => o.userData.type === type).length + 1;
+    mesh.userData.name = type.charAt(0).toUpperCase() + type.slice(1) + ' ' + count;
+    mesh.userData.type = type;
+    scene.add(mesh);
+    objects.push(mesh);
+    select(mesh);
+    refreshList();
+  }
+
+  function selectableMaterials(obj){
+    if (obj.isCharGroup) return obj.members.reduce((acc, m) => acc.concat(selectableMaterials(m)), []);
+    return [obj.userData.parts ? obj.userData.parts.mat : obj.material];
+  }
+
+  function select(obj){
+    if (selected && selected !== 'camera') selectableMaterials(selected).forEach(m => m.emissive.setHex(0x000000));
+    selected = obj;
+    if (selected && selected !== 'camera') selectableMaterials(selected).forEach(m => m.emissive.setHex(0x4a1030));
+    const isChar = !!selected && selected !== 'camera' && !!selected.userData.parts;
+    const isProp = !!selected && selected !== 'camera' && !!selected.userData.isProp;
+    const isDeletable = !!selected && selected !== 'camera';
+    document.getElementById('poseToggle').disabled = !isChar;
+    document.getElementById('delChar').disabled = !isDeletable;
+    document.getElementById('delChar').textContent = (selected && selected.isCharGroup) ? 'Ungroup' : 'Delete';
+    const propScaleRow = document.getElementById('propScaleRow');
+    propScaleRow.style.display = isProp ? 'flex' : 'none';
+    if (isProp){
+      document.getElementById('propWidth').value = selected.scale.x;
+      document.getElementById('propHeight').value = selected.scale.y;
+      refreshPropLabels();
+    }
+    const isRotatable = isChar || isProp;
+    const rotationRow = document.getElementById('rotationRow');
+    rotationRow.style.display = isRotatable ? 'flex' : 'none';
+    if (isRotatable){
+      let deg = Math.round(selected.rotation.y * 180 / Math.PI) % 360;
+      if (deg < 0) deg += 360;
+      document.getElementById('objRotation').value = deg;
+      document.getElementById('objRotationLabel').textContent = deg + '°';
+    }
+    refreshList();
+    const selName = !selected ? 'Nothing selected' : selected === 'camera' ? 'Camera' : selected.userData.name;
+    document.getElementById('tbSelInfo').textContent = selName;
+  }
+
+  function selectCamera(){ select('camera'); }
+
+  function refreshList(){
+    const list = document.getElementById('charList');
+    list.innerHTML = '';
+
+    const camItem = document.createElement('div');
+    camItem.className = 'char-item' + (selected === 'camera' ? ' selected' : '');
+    const camDot = document.createElement('div');
+    camDot.className = 'dot';
+    camDot.style.background = '#e8e6e1';
+    const camLabel = document.createElement('div');
+    camLabel.className = 'label';
+    camLabel.textContent = 'Camera';
+    const camTag = document.createElement('div');
+    camTag.className = 'pose-tag';
+    camTag.textContent = cameraKeyframes.length ? cameraKeyframes.length + ' kf' : '';
+    camItem.append(camDot, camLabel, camTag);
+    camItem.onclick = () => { if (multiSelectSet.size){ multiSelectSet.clear(); updateGroupBtn(); } selectCamera(); };
+    list.appendChild(camItem);
+
+    // A real double-click's first click already runs the single-click handler
+    // below, which calls select() -> refreshList() and tears down this exact
+    // DOM node before the browser can pair it with the second click into a
+    // native 'dblclick' — so double-clicks silently never fired. Detect the
+    // double-click ourselves by object identity + timing instead, entirely
+    // independent of whether the DOM node survives between the two clicks.
+    function multiSelectClick(obj, label){
+      return (e) => {
+        const now = Date.now();
+        if (label && lastClickInfo.obj === obj && now - lastClickInfo.t < 400){
+          lastClickInfo.obj = null;
+          startRename(obj, label);
+          return;
+        }
+        lastClickInfo = { obj, t: now };
+        if (e.ctrlKey || e.metaKey){
+          if (multiSelectSet.has(obj)) multiSelectSet.delete(obj); else multiSelectSet.add(obj);
+          updateGroupBtn();
+          refreshList();
+        } else {
+          if (multiSelectSet.size){ multiSelectSet.clear(); updateGroupBtn(); }
+          select(obj);
+        }
+      };
+    }
+
+    function startRename(obj, label){
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'rename-input';
+      input.value = obj.userData.name;
+      label.replaceWith(input);
+      input.focus();
+      input.select();
+      input.onclick = (ev) => ev.stopPropagation();
+      const commit = () => {
+        const v = input.value.trim();
+        if (v) obj.userData.name = v;
+        refreshList();
+        if (selected === obj) document.getElementById('tbSelInfo').textContent = obj.userData.name;
+      };
+      input.addEventListener('blur', commit);
+      input.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter'){ ev.preventDefault(); input.blur(); }
+        else if (ev.key === 'Escape'){ input.value = obj.userData.name; input.blur(); }
+      });
+    }
+
+    // Double-click a name in the list to rename it in place.
+    function makeNameLabel(obj, prefix){
+      const label = document.createElement('div');
+      label.className = 'label';
+      label.textContent = (prefix || '') + obj.userData.name + (obj.userData.locked ? ' 🔒' : '');
+      label.title = 'Double-click to rename';
+      return label;
+    }
+
+    // Explicit, always-visible alternative to the Ctrl/Cmd-click gesture above —
+    // check two or more of these to enable "Group selected".
+    function makeMultiCheckbox(obj){
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.className = 'multi-check';
+      cb.title = 'Select for grouping';
+      cb.checked = multiSelectSet.has(obj);
+      cb.onclick = (e) => e.stopPropagation();
+      cb.onchange = () => {
+        if (cb.checked) multiSelectSet.add(obj); else multiSelectSet.delete(obj);
+        updateGroupBtn();
+        refreshList();
+      };
+      return cb;
+    }
+
+    characters.forEach(root=>{
+      const item = document.createElement('div');
+      item.className = 'char-item' + (root === selected ? ' selected' : '') + (multiSelectSet.has(root) ? ' multi-selected' : '');
+      const dot = document.createElement('div');
+      dot.className = 'dot';
+      dot.style.background = '#' + root.userData.parts.mat.color.getHexString();
+      const label = makeNameLabel(root);
+      const pose = document.createElement('div');
+      pose.className = 'pose-tag';
+      const kfCount = (root.userData.keyframes || []).length;
+      pose.textContent = (root.userData.pose === 'stand' ? 'standing' : 'sitting') + (kfCount ? ' · ' + kfCount + ' kf' : '');
+      item.append(makeMultiCheckbox(root), dot, label, pose);
+      item.onclick = multiSelectClick(root, label);
+      list.appendChild(item);
+    });
+
+    objects.forEach(mesh=>{
+      const item = document.createElement('div');
+      item.className = 'char-item' + (mesh === selected ? ' selected' : '') + (multiSelectSet.has(mesh) ? ' multi-selected' : '');
+      const dot = document.createElement('div');
+      dot.className = 'dot';
+      dot.style.background = '#' + mesh.material.color.getHexString();
+      const label = makeNameLabel(mesh);
+      const tag = document.createElement('div');
+      tag.className = 'pose-tag';
+      const kfCount = (mesh.userData.keyframes || []).length;
+      tag.textContent = kfCount ? kfCount + ' kf' : '';
+      item.append(makeMultiCheckbox(mesh), dot, label, tag);
+      item.onclick = multiSelectClick(mesh, label);
+      list.appendChild(item);
+    });
+
+    groups.forEach(group=>{
+      const item = document.createElement('div');
+      item.className = 'char-item' + (group === selected ? ' selected' : '');
+      const dot = document.createElement('div');
+      dot.className = 'dot';
+      dot.style.background = '#f59e0b';
+      const label = makeNameLabel(group, '📦 ');
+      const tag = document.createElement('div');
+      tag.className = 'pose-tag';
+      tag.textContent = group.members.length + ' items';
+      item.append(dot, label, tag);
+      item.onclick = (e) => {
+        const now = Date.now();
+        if (lastClickInfo.obj === group && now - lastClickInfo.t < 400){
+          lastClickInfo.obj = null;
+          startRename(group, label);
+          return;
+        }
+        lastClickInfo = { obj: group, t: now };
+        if (multiSelectSet.size){ multiSelectSet.clear(); updateGroupBtn(); }
+        select(group);
+      };
+      list.appendChild(item);
+    });
+
+    refreshKeyframePanel();
+  }
+
+  function updateGroupBtn(){
+    document.getElementById('groupBtn').disabled = multiSelectSet.size < 2;
+  }
+  document.getElementById('groupBtn').onclick = () => {
+    if (multiSelectSet.size < 2) return;
+    pushUndo();
+    const members = Array.from(multiSelectSet);
+    multiSelectSet.clear();
+    updateGroupBtn();
+    select(createGroup(members));
+  };
+
+  document.getElementById('addChar').onclick = () => addCharacter();
+  document.getElementById('addCar').onclick = () => addProp('car');
+  document.getElementById('addBus').onclick = () => addProp('bus');
+  document.getElementById('addWall').onclick = () => addProp('wall');
+  document.getElementById('addHouse').onclick = () => addProp('house');
+  document.getElementById('addTable').onclick = () => addProp('table');
+  document.getElementById('addChair').onclick = () => addProp('chair');
+  document.getElementById('propWidth').addEventListener('pointerdown', pushUndo);
+  document.getElementById('propWidth').oninput = (e) => {
+    if (!selected || selected === 'camera' || !selected.userData.isProp) return;
+    const s = parseFloat(e.target.value);
+    selected.scale.x = s;
+    selected.scale.z = s;
+    refreshPropLabels();
+  };
+  document.getElementById('propHeight').addEventListener('pointerdown', pushUndo);
+  document.getElementById('propHeight').oninput = (e) => {
+    if (!selected || selected === 'camera' || !selected.userData.isProp) return;
+    const s = parseFloat(e.target.value);
+    selected.scale.y = s;
+    updatePropY(selected);
+    refreshPropLabels();
+  };
+  document.getElementById('objRotation').addEventListener('pointerdown', pushUndo);
+  document.getElementById('objRotation').oninput = (e) => {
+    if (!selected || selected === 'camera' || selected.isCharGroup) return;
+    const deg = parseFloat(e.target.value);
+    selected.rotation.y = deg * Math.PI / 180;
+    document.getElementById('objRotationLabel').textContent = deg + '°';
+  };
+  document.getElementById('poseToggle').onclick = () => {
+    if (!selected || selected === 'camera') return;
+    pushUndo();
+    applyPose(selected, selected.userData.pose === 'stand' ? 'sit' : 'stand');
+    refreshList();
+  };
+  document.getElementById('delChar').onclick = () => {
+    if (!selected || selected === 'camera') return;
+    if (selected.isCharGroup){
+      pushUndo();
+      dissolveGroup(selected);
+      select(null);
+      return;
+    }
+    pushUndo();
+    scene.remove(selected);
+    let i = characters.indexOf(selected);
+    if (i >= 0) characters.splice(i,1);
+    else { i = objects.indexOf(selected); if (i >= 0) objects.splice(i,1); }
+    const g = groupOf(selected);
+    if (g){
+      g.members.splice(g.members.indexOf(selected), 1);
+      if (g.members.length < 2) dissolveGroup(g);
+    }
+    select(null);
+  };
+
+  // frame / aspect ratio buttons
+  document.querySelectorAll('.frame-btn').forEach(btn=>{
+    btn.onclick = () => {
+      document.querySelectorAll('.frame-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      const r = btn.dataset.ratio;
+      frameAspect = r ? parseFloat(r) : null;
+      frameLabelText = r ? btn.textContent.trim() : '';
+      updateViewport();
+    };
+  });
+
+  // lens / focal length buttons
+  const LENS_PRESETS = [14, 18, 24, 35, 50, 85, 100, 135, 200];
+  function currentLensMM(){
+    return 12 / Math.tan(camera.fov * Math.PI / 360);
+  }
+  function setLensMM(mm){
+    camera.fov = mmToVFov(mm);
+    camera.updateProjectionMatrix();
+    document.querySelectorAll('.lens-btn').forEach(b => {
+      b.classList.toggle('active', parseFloat(b.dataset.mm) === mm);
+    });
+    syncCamUI();
+  }
+  document.querySelectorAll('.lens-btn').forEach(btn=>{
+    btn.onclick = () => setLensMM(parseFloat(btn.dataset.mm));
+  });
+  function nearestLensPresetIndex(){
+    const cur = currentLensMM();
+    let best = 0;
+    LENS_PRESETS.forEach((mm, i) => {
+      if (Math.abs(mm - cur) < Math.abs(LENS_PRESETS[best] - cur)) best = i;
+    });
+    return best;
+  }
+  document.getElementById('hudLensPrev').onclick = () => {
+    setLensMM(LENS_PRESETS[Math.max(0, nearestLensPresetIndex() - 1)]);
+  };
+  document.getElementById('hudLensNext').onclick = () => {
+    setLensMM(LENS_PRESETS[Math.min(LENS_PRESETS.length - 1, nearestLensPresetIndex() + 1)]);
+  };
+
+  // background swatches
+  document.querySelectorAll('.swatch').forEach(sw=>{
+    sw.onclick = () => {
+      document.querySelectorAll('.swatch').forEach(s=>s.classList.remove('active'));
+      sw.classList.add('active');
+      currentBg = sw.dataset.bg;
+      scene.background = new THREE.Color(currentBg);
+    };
+  });
+
+  document.getElementById('gridToggle').onchange = (e) => { grid.visible = e.target.checked; };
+
+  // ---------- Pointer interaction: orbit vs drag-character ----------
+  const raycaster = new THREE.Raycaster();
+  const mouse = new THREE.Vector2();
+  const floorPlane = new THREE.Plane(new THREE.Vector3(0,1,0), 0);
+
+  let mode = null; // 'orbit' | 'pan' | 'dragChar'
+  let dragChar = null;
+  let dragLastPt = null;
+  let lastX = 0, lastY = 0;
+  let downX = 0, downY = 0;
+
+  // A group has no single position — dragging translates every member by the
+  // same delta instead of snapping to the cursor's floor point.
+  function applyDragMove(obj, pt, lastPt){
+    if (obj.isCharGroup){
+      const dx = pt.x - lastPt.x, dz = pt.z - lastPt.z;
+      obj.members.forEach(m => { m.position.x += dx; m.position.z += dz; });
+    } else {
+      obj.position.x = pt.x;
+      obj.position.z = pt.z;
+    }
+  }
+
+  function setMouseAt(e, canvasEl){
+    const rect = canvasEl.getBoundingClientRect();
+    mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  }
+
+  function pickAt(cam, canvasEl, e){
+    setMouseAt(e, canvasEl);
+    raycaster.setFromCamera(mouse, cam);
+    const meshes = [];
+    characters.forEach(c => c.traverse(o => { if (o.isMesh) meshes.push(o); }));
+    objects.forEach(o => meshes.push(o));
+    const hits = raycaster.intersectObjects(meshes);
+    if (hits.length){
+      let obj = hits[0].object;
+      while (obj.parent && !characters.includes(obj) && !objects.includes(obj)) obj = obj.parent;
+      if (characters.includes(obj) || objects.includes(obj)) return groupOf(obj) || obj;
+      return null;
+    }
+    return null;
+  }
+
+  function floorPointAt(cam, canvasEl, e){
+    setMouseAt(e, canvasEl);
+    raycaster.setFromCamera(mouse, cam);
+    const pt = new THREE.Vector3();
+    raycaster.ray.intersectPlane(floorPlane, pt);
+    return pt;
+  }
+
+  function pickCharacter(e){ return pickAt(camera, canvas, e); }
+  function floorPoint(e){ return floorPointAt(camera, canvas, e); }
+
+  function pickCamMarker(cam, canvasEl, e){
+    setMouseAt(e, canvasEl);
+    raycaster.setFromCamera(mouse, cam);
+    const savedMask = raycaster.layers.mask;
+    raycaster.layers.set(1);
+    const hits = raycaster.intersectObject(camMarker);
+    raycaster.layers.mask = savedMask;
+    return hits.length > 0;
+  }
+
+  // ---------- Top-down view pointer interaction ----------
+  let topMode = null; // 'drag' | 'pan' | 'camDrag' | 'drawPath'
+  let topDragObj = null;
+  let topDragLastPt = null;
+  let topPanAnchor = null; // world point under the cursor when the pan started
+  topCanvas.addEventListener('pointerdown', (e)=>{
+    const wantsPath = drawingPath || e.shiftKey;
+    const camHit = !wantsPath && pickCamMarker(topCamera, topCanvas, e);
+    const hit = (wantsPath || camHit) ? null : pickAt(topCamera, topCanvas, e);
+    if (camHit){
+      pushUndo();
+      select('camera');
+      topMode = 'camDrag';
+    } else if (hit){
+      select(hit);
+      if (hit.userData.locked){
+        topMode = null;
+      } else {
+        pushUndo();
+        topMode = 'drag';
+        topDragObj = hit;
+        topDragLastPt = floorPointAt(topCamera, topCanvas, e);
+      }
+    } else if (wantsPath){
+      topMode = 'drawPath';
+      pathPoints = [];
+      const pt = floorPointAt(topCamera, topCanvas, e);
+      pathPoints.push({ x: pt.x, z: pt.z });
+      refreshPath();
+    } else {
+      select(null);
+      topMode = 'pan';
+      topPanAnchor = floorPointAt(topCamera, topCanvas, e);
+    }
+    topCanvas.setPointerCapture(e.pointerId);
+    topCanvas.classList.add('dragging');
+  });
+  topCanvas.addEventListener('pointermove', (e)=>{
+    if (topMode === 'camDrag'){
+      const pt = floorPointAt(topCamera, topCanvas, e);
+      target.x += pt.x - camera.position.x;
+      target.z += pt.z - camera.position.z;
+      updateCameraFromSpherical();
+    } else if (topMode === 'drag' && topDragObj){
+      const pt = floorPointAt(topCamera, topCanvas, e);
+      applyDragMove(topDragObj, pt, topDragLastPt);
+      topDragLastPt = pt;
+    } else if (topMode === 'pan' && topPanAnchor){
+      const pt = floorPointAt(topCamera, topCanvas, e);
+      topTarget.x -= (pt.x - topPanAnchor.x);
+      topTarget.z -= (pt.z - topPanAnchor.z);
+      updateTopCameraPosition();
+    } else if (topMode === 'drawPath'){
+      const pt = floorPointAt(topCamera, topCanvas, e);
+      const last = pathPoints[pathPoints.length - 1];
+      if (!last || Math.hypot(pt.x - last.x, pt.z - last.z) > 0.15){
+        pathPoints.push({ x: pt.x, z: pt.z });
+        refreshPath();
+      }
+    }
+  });
+  function endTopDrag(){
+    topCanvas.classList.remove('dragging');
+    topMode = null; topDragObj = null; topDragLastPt = null; topPanAnchor = null;
+  }
+  topCanvas.addEventListener('pointerup', endTopDrag);
+  topCanvas.addEventListener('pointerleave', endTopDrag);
+
+  canvas.addEventListener('pointerdown', (e)=>{
+    downX = e.clientX; downY = e.clientY;
+    lastX = e.clientX; lastY = e.clientY;
+    if (e.button === 2){ mode = 'pan'; e.preventDefault(); return; }
+    const wantsPath = drawingPath || e.shiftKey;
+    const hit = wantsPath ? null : pickCharacter(e);
+    if (hit){
+      select(hit);
+      if (hit.userData.locked){
+        mode = null;
+      } else {
+        pushUndo();
+        mode = 'dragChar';
+        dragChar = hit;
+        dragLastPt = floorPoint(e);
+      }
+    } else if (wantsPath){
+      mode = 'drawPath';
+      pathPoints = [];
+      const pt = floorPoint(e);
+      pathPoints.push({ x: pt.x, z: pt.z });
+      refreshPath();
+    } else {
+      mode = 'orbit';
+    }
+    canvas.setPointerCapture(e.pointerId);
+    canvas.classList.add('dragging');
+  });
+
+  canvas.addEventListener('pointermove', (e)=>{
+    if (!mode) return;
+    const dx = e.clientX - lastX, dy = e.clientY - lastY;
+    lastX = e.clientX; lastY = e.clientY;
+
+    if (mode === 'orbit'){
+      theta -= dx * 0.006;
+      phi -= dy * 0.006;
+      updateCameraFromSpherical();
+    } else if (mode === 'pan'){
+      const dirV = new THREE.Vector3().subVectors(target, camera.position).normalize();
+      const rightV = new THREE.Vector3().crossVectors(dirV, camera.up).normalize();
+      const upV = new THREE.Vector3().crossVectors(rightV, dirV).normalize();
+      const factor = radius * 0.0015;
+      target.addScaledVector(rightV, -dx*factor);
+      target.addScaledVector(upV, dy*factor);
+      updateCameraFromSpherical();
+    } else if (mode === 'dragChar' && dragChar){
+      const pt = floorPoint(e);
+      applyDragMove(dragChar, pt, dragLastPt);
+      dragLastPt = pt;
+    } else if (mode === 'drawPath'){
+      const pt = floorPoint(e);
+      const last = pathPoints[pathPoints.length - 1];
+      if (!last || Math.hypot(pt.x - last.x, pt.z - last.z) > 0.15){
+        pathPoints.push({ x: pt.x, z: pt.z });
+        refreshPath();
+      }
+    }
+  });
+
+  function endDrag(e){
+    canvas.classList.remove('dragging');
+    if (mode === null) return;
+    if (mode === 'orbit' || mode === 'dragChar'){
+      const moved = Math.abs(e.clientX - downX) + Math.abs(e.clientY - downY);
+      if (moved < 4 && mode === 'orbit'){
+        // plain click on empty floor: deselect
+        select(null);
+      }
+    }
+    mode = null; dragChar = null; dragLastPt = null;
+  }
+  canvas.addEventListener('pointerup', endDrag);
+  canvas.addEventListener('pointerleave', endDrag);
+  canvas.addEventListener('contextmenu', e => e.preventDefault());
+  canvas.addEventListener('wheel', (e)=>{
+    e.preventDefault();
+    radius = Math.max(2, Math.min(30, radius + e.deltaY * 0.01));
+    updateCameraFromSpherical();
+  }, { passive:false });
+
+  // ---------- Timeline (keyframes per character) ----------
+  let timelineDuration = 6;
+  let currentTime = 0;
+  let playing = false;
+
+  const tlDuration = document.getElementById('tlDuration');
+  const tlPlay = document.getElementById('tlPlay');
+
+  let cameraKeyframes = [];
+
+  function getKeyframes(obj){
+    if (obj === 'camera') return cameraKeyframes;
+    return obj.userData.keyframes || (obj.userData.keyframes = []);
+  }
+
+  function addKeyframe(obj, t){
+    pushUndo();
+    if (obj.isCharGroup){
+      // A group has no track of its own — keyframing it batches a keyframe
+      // onto every member's own track at once, using each member's current pose.
+      obj.members.forEach(m => addKeyframeNoUndo(m, t));
+      refreshList();
+      return;
+    }
+    addKeyframeNoUndo(obj, t);
+    refreshList();
+  }
+
+  function addKeyframeNoUndo(obj, t){
+    const kfs = getKeyframes(obj);
+    let kf;
+    if (obj === 'camera') kf = { t, radius, theta, phi, tx: target.x, ty: target.y, tz: target.z };
+    else if (obj.userData.isProp) kf = { t, x: obj.position.x, z: obj.position.z, rotY: obj.rotation.y };
+    else kf = { t, x: obj.position.x, z: obj.position.z, pose: obj.userData.pose, rotY: obj.rotation.y };
+    const i = kfs.findIndex(k => Math.abs(k.t - t) < 0.005);
+    if (i >= 0) kfs[i] = kf;
+    else { kfs.push(kf); kfs.sort((a,b)=>a.t-b.t); }
+  }
+
+  function removeNearestKeyframe(obj, t){
+    if (obj.isCharGroup){
+      pushUndo();
+      obj.members.forEach(m => removeNearestKeyframeNoUndo(m, t));
+      refreshList();
+      return;
+    }
+    if (!getKeyframes(obj).length) return;
+    pushUndo();
+    removeNearestKeyframeNoUndo(obj, t);
+    refreshList();
+  }
+
+  function removeNearestKeyframeNoUndo(obj, t){
+    const kfs = getKeyframes(obj);
+    if (!kfs.length) return;
+    let bestIdx = 0, bestDist = Infinity;
+    kfs.forEach((k,i)=>{ const d = Math.abs(k.t - t); if (d < bestDist){ bestDist = d; bestIdx = i; } });
+    kfs.splice(bestIdx, 1);
+  }
+
+  let smoothCurves = true; // spline through all keyframes vs. per-segment ease in/out
+
+  function easeInOut(e){ return e<0.5 ? 2*e*e : 1 - Math.pow(-2*e+2,2)/2; }
+
+  // Catmull-Rom through p1..p2 (p0/p3 are the neighbours, or duplicated at the ends).
+  function catmullRom(p0,p1,p2,p3,u){
+    const u2 = u*u, u3 = u2*u;
+    return 0.5 * ((2*p1) + (p2-p0)*u + (2*p0-5*p1+4*p2-p3)*u2 + (3*p1-3*p2+p3-p0)*u3);
+  }
+
+  // Finds the keyframe segment containing t. a===b at/beyond the ends (held value).
+  function findKfSegment(kfs, t){
+    if (t <= kfs[0].t) return { i:0, a:kfs[0], b:kfs[0], u:0 };
+    if (t >= kfs[kfs.length-1].t) return { i:kfs.length-2, a:kfs[kfs.length-1], b:kfs[kfs.length-1], u:0 };
+    for (let i=0; i<kfs.length-1; i++){
+      if (t >= kfs[i].t && t <= kfs[i+1].t){
+        const span = kfs[i+1].t - kfs[i].t || 1;
+        return { i, a:kfs[i], b:kfs[i+1], u:(t - kfs[i].t) / span };
+      }
+    }
+  }
+
+  // Interpolates one numeric field of a keyframe list across a found segment,
+  // either as a smooth spline through the whole track or a per-segment ease.
+  function interpKfField(kfs, seg, field){
+    if (seg.a === seg.b) return seg.a[field];
+    if (smoothCurves){
+      const p1 = kfs[seg.i][field], p2 = kfs[seg.i+1][field];
+      const p0 = (kfs[seg.i-1] || kfs[seg.i])[field];
+      const p3 = (kfs[seg.i+2] || kfs[seg.i+1])[field];
+      return catmullRom(p0, p1, p2, p3, seg.u);
+    }
+    const e = easeInOut(seg.u);
+    return seg.a[field] + (seg.b[field] - seg.a[field]) * e;
+  }
+
+  function applyKeyframesToObject(obj, t, hasPose){
+    const kfs = getKeyframes(obj);
+    if (!kfs.length) return;
+    const seg = findKfSegment(kfs, t);
+    obj.position.x = interpKfField(kfs, seg, 'x');
+    obj.position.z = interpKfField(kfs, seg, 'z');
+    if (typeof seg.a.rotY === 'number' && typeof seg.b.rotY === 'number'){
+      const u = smoothCurves ? seg.u : easeInOut(seg.u);
+      const delta = ((seg.b.rotY - seg.a.rotY + Math.PI) % (Math.PI*2) + Math.PI*2) % (Math.PI*2) - Math.PI;
+      obj.rotation.y = seg.a.rotY + delta * u;
+    }
+    if (hasPose){
+      let poseKf = kfs[0];
+      for (const k of kfs) if (k.t <= t) poseKf = k;
+      if (obj.userData.pose !== poseKf.pose) applyPose(obj, poseKf.pose);
+    }
+  }
+
+  function applyTimeline(t){
+    characters.forEach(root => applyKeyframesToObject(root, t, true));
+    objects.forEach(mesh => applyKeyframesToObject(mesh, t, false));
+  }
+
+  function applyCameraKeyframes(t){
+    const kfs = cameraKeyframes;
+    if (!kfs.length) return;
+    const seg = findKfSegment(kfs, t);
+    radius = interpKfField(kfs, seg, 'radius');
+    theta = interpKfField(kfs, seg, 'theta');
+    phi = interpKfField(kfs, seg, 'phi');
+    target.x = interpKfField(kfs, seg, 'tx');
+    target.y = interpKfField(kfs, seg, 'ty');
+    target.z = interpKfField(kfs, seg, 'tz');
+    updateCameraFromSpherical();
+  }
+
+  let cameraDriveMode = 'keyframes'; // 'keyframes' | 'path'
+
+  function setCurrentTime(t){
+    currentTime = Math.max(0, Math.min(timelineDuration, t));
+    document.getElementById('kfToolbarTime').textContent = currentTime.toFixed(1) + 's';
+    document.getElementById('tbTimeInfo').textContent = currentTime.toFixed(1) + 's / ' + timelineDuration.toFixed(1) + 's';
+    applyTimeline(currentTime);
+    if (cameraDriveMode === 'path') applyCameraFollow(currentTime);
+    else applyCameraKeyframes(currentTime);
+    updatePlayhead();
+  }
+
+  // ---------- Multi-track keyframe panel ----------
+  function refreshKeyframePanel(){
+    const labels = document.getElementById('kfLabels');
+    const lanesWrap = document.getElementById('kfLanesWrap');
+    labels.querySelectorAll('.kf-row-label:not(.header)').forEach(el => el.remove());
+    lanesWrap.querySelectorAll('.kf-lane').forEach(el => el.remove());
+    document.getElementById('kfRulerEnd').textContent = timelineDuration.toFixed(1) + 's';
+
+    const tracks = [{ obj: 'camera', name: 'Camera', kfs: cameraKeyframes, color: '#e8e6e1' }]
+      .concat(characters.map(root => ({ obj: root, name: root.userData.name, kfs: root.userData.keyframes || [], color: '#' + root.userData.parts.mat.color.getHexString() })))
+      .concat(objects.map(mesh => ({ obj: mesh, name: mesh.userData.name, kfs: mesh.userData.keyframes || [], color: '#' + mesh.material.color.getHexString() })));
+
+    tracks.forEach(track => {
+      const rowLabel = document.createElement('div');
+      rowLabel.className = 'kf-row-label' + (selected === track.obj ? ' active' : '');
+      rowLabel.textContent = track.name;
+      rowLabel.style.background = hexToRgba(track.color, 0.22);
+      rowLabel.onclick = () => select(track.obj);
+      labels.appendChild(rowLabel);
+
+      const lane = document.createElement('div');
+      lane.className = 'kf-lane' + (selected === track.obj ? ' active' : '');
+      lane.style.background = hexToRgba(track.color, 0.14);
+      lane.onclick = (e) => {
+        const rect = lane.getBoundingClientRect();
+        const frac = rect.width > 0 ? Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)) : 0;
+        select(track.obj);
+        setCurrentTime(frac * timelineDuration);
+      };
+      track.kfs.forEach(k => {
+        const mark = document.createElement('div');
+        mark.className = 'kf-mark';
+        mark.title = 'Drag to move, click to delete this keyframe';
+        mark.style.left = (timelineDuration > 0 ? (k.t / timelineDuration * 100) : 0) + '%';
+
+        let dragStartX = null, didDrag = false, dragStartT = 0;
+        mark.addEventListener('pointerdown', (e) => {
+          e.stopPropagation();
+          dragStartX = e.clientX;
+          dragStartT = k.t;
+          didDrag = false;
+          mark.setPointerCapture(e.pointerId);
+        });
+        mark.addEventListener('pointermove', (e) => {
+          if (dragStartX === null) return;
+          if (!didDrag && Math.abs(e.clientX - dragStartX) < 3) return;
+          if (!didDrag) pushUndo();
+          didDrag = true;
+          const rect = lane.getBoundingClientRect();
+          const dFrac = rect.width > 0 ? (e.clientX - dragStartX) / rect.width : 0;
+          k.t = Math.max(0, Math.min(timelineDuration, dragStartT + dFrac * timelineDuration));
+          mark.style.left = (timelineDuration > 0 ? (k.t / timelineDuration * 100) : 0) + '%';
+          setCurrentTime(currentTime);
+        });
+        mark.addEventListener('pointerup', (e) => {
+          e.stopPropagation();
+          mark.releasePointerCapture(e.pointerId);
+          dragStartX = null;
+          if (didDrag){
+            track.kfs.sort((a,b)=>a.t-b.t);
+            refreshKeyframePanel();
+            setCurrentTime(currentTime);
+          }
+        });
+        mark.onclick = (e) => {
+          e.stopPropagation();
+          if (didDrag){ didDrag = false; return; }
+          removeNearestKeyframe(track.obj, k.t);
+        };
+        lane.appendChild(mark);
+      });
+      lanesWrap.appendChild(lane);
+    });
+
+    updatePlayhead();
+  }
+
+  function updatePlayhead(){
+    const playhead = document.getElementById('kfPlayhead');
+    const frac = timelineDuration > 0 ? currentTime / timelineDuration : 0;
+    playhead.style.left = (frac * 100) + '%';
+  }
+
+  // Drag anywhere in the ruler/lanes area (the "timeline cursor") to scrub time.
+  const kfLanesWrapEl = document.getElementById('kfLanesWrap');
+  let kfScrubbing = false;
+  function kfScrubFromEvent(e){
+    const rect = kfLanesWrapEl.getBoundingClientRect();
+    const frac = rect.width > 0 ? Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)) : 0;
+    setCurrentTime(frac * timelineDuration);
+  }
+  kfLanesWrapEl.addEventListener('pointerdown', (e)=>{
+    kfScrubbing = true;
+    kfLanesWrapEl.setPointerCapture(e.pointerId);
+    kfScrubFromEvent(e);
+  });
+  kfLanesWrapEl.addEventListener('pointermove', (e)=>{ if (kfScrubbing) kfScrubFromEvent(e); });
+  kfLanesWrapEl.addEventListener('pointerup', ()=>{ kfScrubbing = false; });
+  kfLanesWrapEl.addEventListener('pointerleave', ()=>{ kfScrubbing = false; });
+
+  tlDuration.onchange = (e) => {
+    timelineDuration = Math.max(1, parseFloat(e.target.value) || 6);
+    setCurrentTime(Math.min(currentTime, timelineDuration));
+    refreshKeyframePanel();
+  };
+  document.getElementById('smoothToggle').onchange = (e) => {
+    smoothCurves = e.target.checked;
+    setCurrentTime(currentTime);
+  };
+  document.getElementById('tlAddKey').onclick = () => {
+    if (!selected) return;
+    addKeyframe(selected, currentTime);
+  };
+  document.getElementById('tlDelKey').onclick = () => {
+    if (!selected) return;
+    removeNearestKeyframe(selected, currentTime);
+  };
+
+  let lastPlayTs = 0;
+  function playStep(now){
+    if (!playing) return;
+    const dt = (now - lastPlayTs) / 1000;
+    lastPlayTs = now;
+    let t = currentTime + dt;
+    if (t >= timelineDuration){
+      t = timelineDuration;
+      stopPlayback();
+      if (recording) stopRecording();
+    }
+    setCurrentTime(t);
+    if (playing) requestAnimationFrame(playStep);
+  }
+  function startPlayback(){
+    if (currentTime >= timelineDuration) setCurrentTime(0);
+    playing = true;
+    tlPlay.textContent = '❚❚ Pause';
+    setPathVisible(false);
+    lastPlayTs = performance.now();
+    requestAnimationFrame(playStep);
+  }
+  function stopPlayback(){
+    playing = false;
+    tlPlay.textContent = '▶ Play';
+    setPathVisible(true);
+  }
+  tlPlay.onclick = () => {
+    if (playing) stopPlayback();
+    else startPlayback();
+  };
+
+  window.addEventListener('keydown', (e)=>{
+    const mod = e.ctrlKey || e.metaKey;
+    if (mod && e.code === 'KeyS'){
+      e.preventDefault();
+      document.getElementById('saveShot').click();
+      return;
+    }
+    if (mod && e.code === 'KeyZ'){
+      e.preventDefault();
+      undo();
+      return;
+    }
+    const tag = (document.activeElement && document.activeElement.tagName) || '';
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    if (e.code === 'Space'){
+      e.preventDefault();
+      tlPlay.click();
+    } else if (e.code === 'KeyR'){
+      document.getElementById('mvReset').click();
+    } else if (e.code === 'KeyL'){
+      if (selected && selected !== 'camera'){
+        pushUndo();
+        selected.userData.locked = !selected.userData.locked;
+        refreshList();
+      }
+    }
+  });
+
+  // ---------- Camera trajectory ----------
+  let pathPoints = [];
+  let pathHeight = 1.6;
+  let drawingPath = false;
+  let followPath = false;
+  let pathCurve = null;
+  let pathLine = null;
+  let pathMarkers = null;
+
+  function refreshPath(){
+    if (pathLine){ scene.remove(pathLine); pathLine.geometry.dispose(); pathLine = null; }
+    if (pathMarkers){ scene.remove(pathMarkers); pathMarkers = null; }
+    pathCurve = null;
+    if (pathPoints.length){
+      const pts = pathPoints.map(p => new THREE.Vector3(p.x, 0.02, p.z));
+      const geo = new THREE.BufferGeometry().setFromPoints(pts);
+      pathLine = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xd98e4a }));
+      scene.add(pathLine);
+
+      pathMarkers = new THREE.Group();
+      const markerGeo = new THREE.SphereGeometry(0.05, 8, 8);
+      const markerMat = new THREE.MeshBasicMaterial({ color: 0xd98e4a });
+      pathPoints.forEach(p => {
+        const m = new THREE.Mesh(markerGeo, markerMat);
+        m.position.set(p.x, 0.02, p.z);
+        pathMarkers.add(m);
+      });
+      scene.add(pathMarkers);
+    }
+    if (pathPoints.length >= 2){
+      pathCurve = new THREE.CatmullRomCurve3(pathPoints.map(p => new THREE.Vector3(p.x, pathHeight, p.z)));
+    }
+  }
+
+  function setPathVisible(visible){
+    if (pathLine) pathLine.visible = visible;
+    if (pathMarkers) pathMarkers.visible = visible;
+  }
+
+  function applyCameraFollow(t){
+    if (!followPath || !pathCurve) return;
+    const lin = timelineDuration > 0 ? Math.max(0, Math.min(1, t / timelineDuration)) : 0;
+    const u = easeInOut(lin);
+    camera.position.copy(pathCurve.getPointAt(u));
+    camera.lookAt(target);
+    updateCamMarker();
+  }
+
+  const pathDrawBtn = document.getElementById('pathDraw');
+  pathDrawBtn.onclick = () => {
+    drawingPath = !drawingPath;
+    pathDrawBtn.classList.toggle('active', drawingPath);
+    pathDrawBtn.textContent = drawingPath ? 'Drawing… (click-drag)' : 'Draw path';
+  };
+  document.getElementById('pathClear').onclick = () => {
+    pathPoints = [];
+    refreshPath();
+  };
+  document.getElementById('pathHeight').onchange = (e) => {
+    pathHeight = parseFloat(e.target.value) || 1.6;
+    refreshPath();
+    applyCameraFollow(currentTime);
+  };
+  document.getElementById('pathFollow').onchange = (e) => {
+    followPath = e.target.checked;
+    if (followPath){
+      cameraDriveMode = 'path';
+      document.querySelectorAll('.drive-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === 'path'));
+    }
+    setCurrentTime(currentTime);
+  };
+
+  document.querySelectorAll('.drive-btn').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('.drive-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      cameraDriveMode = btn.dataset.mode;
+      setCurrentTime(currentTime);
+    };
+  });
+
+  // ---------- Shots (save / load scene setups) ----------
+  const SHOTS_KEY = 'blocking-tool-shots';
+  let shots = [];
+  try { shots = JSON.parse(localStorage.getItem(SHOTS_KEY) || '[]'); } catch(e){ shots = []; }
+
+  function persistShots(){
+    try { localStorage.setItem(SHOTS_KEY, JSON.stringify(shots)); } catch(e){}
+  }
+
+  function captureShot(name){
+    return {
+      name,
+      background: currentBg,
+      frame: { aspect: frameAspect, label: frameLabelText },
+      camera: {
+        radius, theta, phi, fov: camera.fov,
+        target: { x: target.x, y: target.y, z: target.z },
+        keyframes: cameraKeyframes.map(k => ({...k}))
+      },
+      timelineDuration,
+      cameraDriveMode,
+      smoothCurves,
+      path: {
+        points: pathPoints.map(p => ({...p})),
+        height: pathHeight,
+        follow: followPath
+      },
+      characters: characters.map(root => ({
+        x: root.position.x, z: root.position.z, rotY: root.rotation.y,
+        pose: root.userData.pose, name: root.userData.name,
+        color: root.userData.parts.mat.color.getHex(),
+        keyframes: (root.userData.keyframes || []).map(k => ({...k}))
+      })),
+      objects: objects.map(mesh => ({
+        type: mesh.userData.type, x: mesh.position.x, z: mesh.position.z, rotY: mesh.rotation.y, name: mesh.userData.name,
+        scaleW: mesh.scale.x, scaleH: mesh.scale.y, keyframes: (mesh.userData.keyframes || []).map(k => ({...k}))
+      }))
+    };
+  }
+
+  // ---------- Undo (Ctrl/Cmd+Z) ----------
+  let undoStack = [];
+  let suppressUndo = false;
+  const UNDO_LIMIT = 40;
+
+  function pushUndo(){
+    if (suppressUndo) return;
+    undoStack.push(captureShot('__undo__'));
+    if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+  }
+
+  function undo(){
+    if (!undoStack.length) return;
+    const prev = undoStack.pop();
+    suppressUndo = true;
+    loadShot(prev);
+    suppressUndo = false;
+  }
+
+  function clearSceneObjects(){
+    characters.slice().forEach(root => scene.remove(root));
+    characters.length = 0;
+    objects.slice().forEach(mesh => scene.remove(mesh));
+    objects.length = 0;
+    // groups only reference the objects above by identity, so they can't
+    // survive a full rebuild (undo/redo, shot load) — drop them too.
+    groups.length = 0;
+    multiSelectSet.clear();
+    updateGroupBtn();
+    select(null);
+  }
+
+  function loadShot(shot){
+    pushUndo();
+    clearSceneObjects();
+
+    currentBg = shot.background;
+    scene.background = new THREE.Color(currentBg);
+    document.querySelectorAll('.swatch').forEach(s => s.classList.toggle('active', s.dataset.bg === currentBg));
+
+    frameAspect = shot.frame.aspect;
+    frameLabelText = shot.frame.label;
+    document.querySelectorAll('.frame-btn').forEach(b => {
+      const val = b.dataset.ratio ? parseFloat(b.dataset.ratio) : null;
+      b.classList.toggle('active', val === frameAspect);
+    });
+    updateViewport();
+
+    radius = shot.camera.radius;
+    theta = shot.camera.theta;
+    phi = shot.camera.phi;
+    target.set(shot.camera.target.x, shot.camera.target.y, shot.camera.target.z);
+    cameraKeyframes = shot.camera.keyframes.map(k => ({...k}));
+    if (shot.camera.fov){
+      camera.fov = shot.camera.fov;
+      camera.updateProjectionMatrix();
+      document.querySelectorAll('.lens-btn').forEach(b => {
+        b.classList.toggle('active', Math.abs(mmToVFov(parseFloat(b.dataset.mm)) - shot.camera.fov) < 0.01);
+      });
+    }
+    updateCameraFromSpherical();
+
+    timelineDuration = shot.timelineDuration;
+    tlDuration.value = timelineDuration;
+
+    cameraDriveMode = shot.cameraDriveMode || 'keyframes';
+    document.querySelectorAll('.drive-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === cameraDriveMode));
+
+    smoothCurves = shot.smoothCurves !== false;
+    document.getElementById('smoothToggle').checked = smoothCurves;
+
+    pathPoints = shot.path.points.map(p => ({...p}));
+    pathHeight = shot.path.height;
+    followPath = shot.path.follow;
+    document.getElementById('pathHeight').value = pathHeight;
+    document.getElementById('pathFollow').checked = followPath;
+    refreshPath();
+
+    shot.characters.forEach(c => {
+      addCharacter(c.x, c.z);
+      const root = characters[characters.length - 1];
+      root.userData.name = c.name;
+      root.userData.keyframes = c.keyframes.map(k => ({...k}));
+      applyPose(root, c.pose);
+      root.userData.parts.mat.color.setHex(c.color);
+      if (typeof c.rotY === 'number') root.rotation.y = c.rotY;
+    });
+
+    shot.objects.forEach(o => {
+      addProp(o.type, o.x, o.z);
+      const mesh = objects[objects.length - 1];
+      mesh.userData.name = o.name;
+      mesh.userData.keyframes = (o.keyframes || []).map(k => ({...k}));
+      const w = o.scaleW || o.scale || 1;
+      const h = o.scaleH || o.scale || 1;
+      mesh.scale.set(w, h, w);
+      updatePropY(mesh);
+      if (typeof o.rotY === 'number') mesh.rotation.y = o.rotY;
+    });
+
+    select(null);
+    setCurrentTime(0);
+    refreshShotList();
+  }
+
+  function refreshShotList(){
+    const list = document.getElementById('shotList');
+    list.innerHTML = '';
+    shots.forEach((shot, i) => {
+      const item = document.createElement('div');
+      item.className = 'char-item';
+      const label = document.createElement('div');
+      label.className = 'label';
+      label.textContent = shot.name;
+      const del = document.createElement('div');
+      del.className = 'pose-tag';
+      del.textContent = '✕';
+      del.style.cursor = 'pointer';
+      del.onclick = (ev) => {
+        ev.stopPropagation();
+        shots.splice(i, 1);
+        persistShots();
+        refreshShotList();
+      };
+      item.append(label, del);
+      item.onclick = () => loadShot(shot);
+      list.appendChild(item);
+    });
+    document.getElementById('tbShotCount').textContent = shots.length + (shots.length === 1 ? ' shot saved' : ' shots saved');
+  }
+
+  document.getElementById('saveShot').onclick = () => {
+    const name = prompt('Shot name', 'Shot ' + (shots.length + 1));
+    if (name === null) return;
+    shots.push(captureShot(name || ('Shot ' + (shots.length + 1))));
+    persistShots();
+    refreshShotList();
+  };
+
+  document.getElementById('exportShots').onclick = () => {
+    const blob = new Blob([JSON.stringify(shots, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'blocking-shots.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importShotsFile = document.getElementById('importShotsFile');
+  document.getElementById('importShotsBtn').onclick = () => importShotsFile.click();
+  importShotsFile.onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const imported = JSON.parse(reader.result);
+        if (Array.isArray(imported)){
+          shots = shots.concat(imported);
+          persistShots();
+          refreshShotList();
+        }
+      } catch(err){ alert('Could not read that file as a shot list.'); }
+      importShotsFile.value = '';
+    };
+    reader.readAsText(file);
+  };
+
+  refreshShotList();
+
+  // ---------- Top toolbar menu ----------
+  const mainMenuBtn = document.getElementById('mainMenuBtn');
+  const mainMenu = document.getElementById('mainMenu');
+  mainMenuBtn.onclick = (e) => {
+    e.stopPropagation();
+    mainMenuBtn.classList.toggle('open');
+    mainMenu.classList.toggle('open');
+  };
+  document.addEventListener('click', () => {
+    mainMenuBtn.classList.remove('open');
+    mainMenu.classList.remove('open');
+  });
+  mainMenu.onclick = (e) => e.stopPropagation();
+  document.getElementById('menuSaveShot').onclick = () => { document.getElementById('saveShot').click(); mainMenu.classList.remove('open'); mainMenuBtn.classList.remove('open'); };
+  document.getElementById('menuExportShots').onclick = () => { document.getElementById('exportShots').click(); mainMenu.classList.remove('open'); mainMenuBtn.classList.remove('open'); };
+  document.getElementById('menuImportShots').onclick = () => { document.getElementById('importShotsBtn').click(); mainMenu.classList.remove('open'); mainMenuBtn.classList.remove('open'); };
+  document.getElementById('menuResetCam').onclick = () => { document.getElementById('mvReset').click(); mainMenu.classList.remove('open'); mainMenuBtn.classList.remove('open'); };
+
+  const helpOverlay = document.getElementById('help-overlay');
+  function openHelp(){ helpOverlay.classList.add('show'); }
+  function closeHelp(){ helpOverlay.classList.remove('show'); }
+  document.getElementById('menuHelp').onclick = () => { openHelp(); mainMenu.classList.remove('open'); mainMenuBtn.classList.remove('open'); };
+  document.getElementById('help-close').onclick = closeHelp;
+  helpOverlay.addEventListener('click', (e) => { if (e.target === helpOverlay) closeHelp(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && helpOverlay.classList.contains('show')) closeHelp(); });
+
+  // ---------- Camera move presets ----------
+  let animating = false;
+  function tween(duration, onFrame, onDone){
+    animating = true;
+    const t0 = performance.now();
+    function step(now){
+      const t = Math.min(1, (now - t0) / duration);
+      const ease = t<0.5 ? 2*t*t : 1 - Math.pow(-2*t+2,2)/2;
+      onFrame(ease);
+      if (t < 1) requestAnimationFrame(step);
+      else { animating = false; if (onDone) onDone(); }
+    }
+    requestAnimationFrame(step);
+  }
+
+  function movePushIn(done){
+    const start = radius, end = Math.max(2.5, radius - 3);
+    tween(2200, e => { radius = start + (end-start)*e; updateCameraFromSpherical(); }, done);
+  }
+  function movePullOut(done){
+    const start = radius, end = Math.min(28, radius + 3);
+    tween(2200, e => { radius = start + (end-start)*e; updateCameraFromSpherical(); }, done);
+  }
+  function moveOrbit(dir, done){
+    const start = theta, end = theta + dir * (Math.PI/2);
+    tween(3000, e => { theta = start + (end-start)*e; updateCameraFromSpherical(); }, done);
+  }
+
+  document.getElementById('mvPushIn').onclick = () => movePushIn();
+  document.getElementById('mvPullOut').onclick = () => movePullOut();
+  document.getElementById('mvOrbitL').onclick = () => moveOrbit(-1);
+  document.getElementById('mvOrbitR').onclick = () => moveOrbit(1);
+  document.getElementById('mvReset').onclick = () => {
+    tween(900, e => {
+      radius = radius + (8-radius)*e;
+      theta = theta + (Math.PI/4-theta)*e;
+      phi = phi + (Math.PI/3.2-phi)*e;
+      target.lerp(new THREE.Vector3(0,1,0), e);
+      updateCameraFromSpherical();
+    });
+  };
+
+  // ---------- Recording ----------
+  let mediaRecorder = null, chunks = [], recording = false;
+  const recBtn = document.getElementById('recBtn');
+  const statusEl = document.getElementById('status');
+  const dlWrap = document.getElementById('dlWrap');
+
+  recBtn.onclick = () => {
+    if (!recording) startRecording();
+    else stopRecording();
+  };
+
+  function startRecording(){
+    dlWrap.innerHTML = '';
+    chunks = [];
+    let stream;
+    try { stream = canvas.captureStream(30); }
+    catch(err){ statusEl.textContent = "Video capture not supported in this browser."; return; }
+
+    let mime = 'video/webm;codecs=vp9';
+    if (!MediaRecorder.isTypeSupported(mime)) mime = 'video/webm;codecs=vp8';
+    if (!MediaRecorder.isTypeSupported(mime)) mime = 'video/webm';
+
+    try { mediaRecorder = new MediaRecorder(stream, { mimeType: mime }); }
+    catch(err){ statusEl.textContent = "Recording error."; return; }
+
+    mediaRecorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(chunks, { type: 'video/webm' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.className = 'dl-link';
+      a.href = url;
+      a.download = 'blocking-preview.webm';
+      a.textContent = '↓ Download video';
+      dlWrap.appendChild(a);
+      statusEl.textContent = '';
+      recBtn.innerHTML = '● Record';
+      recBtn.classList.remove('active');
+      recording = false;
+    };
+
+    mediaRecorder.start();
+    recording = true;
+    recBtn.innerHTML = '<span id="recDot"></span>Stop';
+    recBtn.classList.add('active');
+    statusEl.textContent = 'Recording — playing the shot…';
+
+    setCurrentTime(0);
+    startPlayback();
+  }
+
+  function stopRecording(){
+    if (playing) stopPlayback();
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+  }
+
+  // ---------- Render loop ----------
+  resize();
+  addCharacter(-0.8, 0);
+  addCharacter(0.8, -0.4);
+
+  function render(){
+    renderer.setScissorTest(false);
+    renderer.setViewport(0, 0, viewport.w, viewport.h);
+    renderer.render(scene, camera);
+    topRenderer.render(scene, topCamera);
+    requestAnimationFrame(render);
+  }
+  render();
+})();
+</script>
+</body>
+</html>
