@@ -392,7 +392,7 @@
           <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
           GitHub
         </span>
-        <span class="tb-version">v0.1.2</span>
+        <span class="tb-version">v0.1.3</span>
       </a>
     </div>
   </div>
@@ -1840,14 +1840,24 @@
     }
   }
 
+  // The very first and last segments of a track have no real neighbour on
+  // one side, so Catmull-Rom's phantom duplicate-point tangent there isn't
+  // zero — the move keeps a constant, non-eased speed right at the start/end
+  // of the whole animation instead of easing in/out of the held pose. Use the
+  // proper ease there and reserve the spline for interior segments, where
+  // there are real keyframes on both sides to blend through smoothly.
+  function isBoundarySegment(kfs, seg){
+    return seg.i === 0 || seg.i === kfs.length - 2;
+  }
+
   // Interpolates one numeric field of a keyframe list across a found segment,
   // either as a smooth spline through the whole track or a per-segment ease.
   function interpKfField(kfs, seg, field){
     if (seg.a === seg.b) return seg.a[field];
-    if (smoothCurves){
+    if (smoothCurves && !isBoundarySegment(kfs, seg)){
       const p1 = kfs[seg.i][field], p2 = kfs[seg.i+1][field];
-      const p0 = (kfs[seg.i-1] || kfs[seg.i])[field];
-      const p3 = (kfs[seg.i+2] || kfs[seg.i+1])[field];
+      const p0 = kfs[seg.i-1][field];
+      const p3 = kfs[seg.i+2][field];
       return catmullRom(p0, p1, p2, p3, seg.u);
     }
     const e = easeInOut(seg.u);
@@ -1861,7 +1871,7 @@
     obj.position.x = interpKfField(kfs, seg, 'x');
     obj.position.z = interpKfField(kfs, seg, 'z');
     if (typeof seg.a.rotY === 'number' && typeof seg.b.rotY === 'number'){
-      const u = smoothCurves ? seg.u : easeInOut(seg.u);
+      const u = (smoothCurves && !isBoundarySegment(kfs, seg)) ? seg.u : easeInOut(seg.u);
       const delta = ((seg.b.rotY - seg.a.rotY + Math.PI) % (Math.PI*2) + Math.PI*2) % (Math.PI*2) - Math.PI;
       obj.rotation.y = seg.a.rotY + delta * u;
     }

@@ -2,6 +2,11 @@
 
 All notable changes to Blocking Tool are documented here.
 
+## [0.1.3] - 2026-07-02
+
+### Fixed
+- With "Smooth" curves on (the default), a move between just two keyframes — the most common case, e.g. a camera pan from A to B — had a constant, non-eased speed right from the first frame instead of easing in and out. Caused by the Catmull-Rom spline's phantom duplicate-point tangent at the very first/last keyframe of a track not actually being zero. The first and last segment of every track now use a proper ease in/out instead; interior segments (3+ keyframes) still blend through a smooth spline as before.
+
 ## [0.1.2] - 2026-07-02
 
 ### Added
