@@ -219,7 +219,7 @@
   #frameOverlay .crosshair::after { top:50%; left:0; right:0; height:1.5px; transform:translateY(-50%); }
 
   #camHud {
-    position:absolute; left:10px; bottom:10px; z-index:6; width:200px;
+    position:absolute; left:25px; bottom:60px; z-index:6; width:200px;
     background: rgba(10,10,10,0.6); border:1px solid rgba(255,255,255,0.45);
     border-radius:8px; padding:10px 12px; backdrop-filter: blur(6px);
     display:flex; flex-direction:column; gap:7px; pointer-events:auto;
@@ -238,7 +238,7 @@
   }
   .hud-lens-btn:hover { background:rgba(255,255,255,0.18); }
   #camHudToggle {
-    position:absolute; left:10px; bottom:10px; z-index:6; width:auto;
+    position:absolute; left:25px; bottom:60px; z-index:6; width:auto;
     margin:0; padding:5px 9px; font-size:10px;
     background:rgba(10,10,10,0.55); color:#fff; border-color:rgba(255,255,255,0.25);
     display:none; pointer-events:auto;
@@ -262,9 +262,15 @@
     margin-bottom:10px; border-radius: var(--radius);
     border:0.5px solid var(--panel-border);
     padding:10px 12px; background: rgba(255,255,255,0.015);
+    transition: border-color .15s;
   }
-  section.has-color { background: rgba(var(--sec-rgb), 1); transition: background .15s; }
+  section:hover { border:1px solid rgba(255,255,255,0.95); }
+  section.has-color {
+    background: rgba(var(--sec-rgb), 1); border-color: rgba(var(--sec-rgb), 0.75);
+    transition: background .15s, border-color .15s;
+  }
   section.has-color:not(.collapsed) { background: rgba(var(--sec-rgb), 0.12); }
+  section.has-color:hover { border:1px solid rgba(255,255,255,0.95); }
   section h2 {
     font-size:10px; letter-spacing:.08em; text-transform:uppercase;
     color: var(--text); margin:0; font-weight:600;
@@ -509,6 +515,7 @@
       <button id="tlPlay">▶ Play</button>
       <button id="tlAddKey">+ Keyframe</button>
       <button class="danger" id="tlDelKey">Delete keyframe</button>
+      <button id="tlSaveFrame" title="Export a PNG of the current frame, cropped to the selected frame ratio">Save image</button>
       <span class="hint" style="margin:0">Duration</span>
       <input type="number" id="tlDuration" value="6" min="1" max="60" step="1">
       <label class="hint" style="margin:0; display:flex; align-items:center; gap:5px" title="Smooth: a continuous spline through all keyframes. Off: eased stop at each keyframe.">
@@ -763,6 +770,8 @@
     <div id="status"></div>
     <div id="dlWrap"></div>
     <div class="hint">Plays the whole shot from the start and records it automatically, stopping at the end of the timeline.</div>
+    <button id="exportFrameBtn" style="margin-top:6px">Save frame as image</button>
+    <div class="hint">Exports a JPEG of the main view at the current playhead position, cropped to the selected Frame ratio (or the full view if set to Free).</div>
   </section>
 </div>
 
@@ -869,7 +878,6 @@
       wrapper.appendChild(label);
       h2.textContent = '';
       h2.appendChild(wrapper);
-      section.style.borderColor = hexToRgba(info.color, 0.75);
       section.style.setProperty('--sec-rgb', hexToRgbTriplet(info.color));
       section.classList.add('has-color');
     }
@@ -940,6 +948,7 @@
   // ---------- Frame (viewfinder) ----------
   let frameAspect = null; // null = free, otherwise target aspect ratio
   let viewport = { x:0, y:0, w:0, h:0 };
+  let frameRect = { x:0, y:0, w:0, h:0 }; // crop guide rect, in canvas CSS-pixel space
   const frameOverlay = document.getElementById('frameOverlay');
   const frameMask = document.getElementById('frameMask');
   const frameLabel = document.getElementById('frameLabel');
@@ -983,6 +992,7 @@
       fw = Math.round(fw);
       fh = Math.round(fh);
     }
+    frameRect = { x:fx, y:fy, w:fw, h:fh };
 
     camera.updateProjectionMatrix();
     frameOverlay.style.left = (left + fx) + 'px';
@@ -1277,6 +1287,7 @@
     JOINT_NAMES.forEach(n => setJoint(root, n, 0));
     return root;
   }
+
 
   // Legs stay full length; sitting folds them via the hip/knee joints instead of
   // squashing the mesh, so "Sit" is just a preset on top of the same joint system
@@ -2735,6 +2746,40 @@
     if (playing) stopPlayback();
     if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
   }
+
+  function exportFrame(){
+    renderer.setScissorTest(false);
+    renderer.setViewport(0, 0, viewport.w, viewport.h);
+    renderer.render(scene, camera);
+
+    let sourceCanvas = canvas;
+    if (frameAspect){
+      // The canvas's backing buffer is bigger than its CSS size (devicePixelRatio),
+      // so scale the crop guide's CSS-pixel rect up to buffer pixels before cropping.
+      const scaleX = canvas.width / viewport.w;
+      const scaleY = canvas.height / viewport.h;
+      const sx = Math.round(frameRect.x * scaleX);
+      const sy = Math.round(frameRect.y * scaleY);
+      const sw = Math.round(frameRect.w * scaleX);
+      const sh = Math.round(frameRect.h * scaleY);
+      const off = document.createElement('canvas');
+      off.width = sw; off.height = sh;
+      off.getContext('2d').drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
+      sourceCanvas = off;
+    }
+
+    sourceCanvas.toBlob((blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'blocking-frame-' + currentTime.toFixed(1) + 's.jpg';
+      a.click();
+      URL.revokeObjectURL(url);
+    }, 'image/jpeg', 0.92);
+  }
+  document.getElementById('exportFrameBtn').onclick = exportFrame;
+  document.getElementById('tlSaveFrame').onclick = exportFrame;
 
   // ---------- Render loop ----------
   resize();
