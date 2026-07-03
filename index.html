@@ -638,7 +638,11 @@
     <h2>Frame</h2>
     <div class="row" style="margin-bottom:6px">
       <button class="frame-btn active" data-ratio="">Free</button>
+      <button class="frame-btn" data-ratio="1">1:1</button>
+    </div>
+    <div class="row" style="margin-bottom:6px">
       <button class="frame-btn" data-ratio="1.7778">16:9</button>
+      <button class="frame-btn" data-ratio="0.5625">9:16</button>
     </div>
     <div class="row">
       <button class="frame-btn" data-ratio="1.43">1.43</button>
@@ -764,6 +768,7 @@
     <div class="sc-row"><span>Undo</span><span class="sc-key">Ctrl+Z</span></div>
     <div class="sc-row"><span>Play / pause timeline</span><span class="sc-key">Space</span></div>
     <div class="sc-row"><span>Reset camera</span><span class="sc-key">R</span></div>
+    <div class="sc-row"><span>Show / hide floor grid</span><span class="sc-key">G</span></div>
     <div class="sc-row"><span>Lock / unlock selected item</span><span class="sc-key">L</span></div>
     <div class="sc-row"><span>Close this or any other dialog</span><span class="sc-key">Esc</span></div>
 
@@ -2253,6 +2258,10 @@
       tlPlay.click();
     } else if (e.code === 'KeyR'){
       document.getElementById('mvReset').click();
+    } else if (e.code === 'KeyG'){
+      const gridToggle = document.getElementById('gridToggle');
+      gridToggle.checked = !gridToggle.checked;
+      gridToggle.dispatchEvent(new Event('change'));
     } else if (e.code === 'KeyL'){
       if (selected && selected !== 'camera'){
         pushUndo();
