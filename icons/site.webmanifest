@@ -1,0 +1,23 @@
+{
+  "name": "Blocking Tool — Rough Previs",
+  "short_name": "Blocking Tool",
+  "description": "A free, single-file 3D previs / shot-blocking web app for planning camera shots and character staging.",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "/icons/web-app-manifest-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/web-app-manifest-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "theme_color": "#0d0d0d",
+  "background_color": "#0d0d0d",
+  "display": "standalone"
+}
