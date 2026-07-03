@@ -263,20 +263,25 @@
     border:0.5px solid var(--panel-border);
     padding:10px 12px; background: rgba(255,255,255,0.015);
   }
+  section.has-color { background: rgba(var(--sec-rgb), 1); transition: background .15s; }
+  section.has-color:not(.collapsed) { background: rgba(var(--sec-rgb), 0.12); }
   section h2 {
     font-size:10px; letter-spacing:.08em; text-transform:uppercase;
-    color: var(--text-dim); margin:0; font-weight:600;
+    color: var(--text); margin:0; font-weight:600;
     padding-bottom:0;
     display:flex; align-items:center; justify-content:space-between;
     cursor:pointer; user-select:none;
   }
   section:not(.collapsed) h2 { margin-bottom:10px; padding-bottom:6px; border-bottom:0.5px solid var(--panel-border); }
-  section h2:hover { color: var(--text); }
+  section h2:hover { color: var(--text-dim); }
   section h2::after {
     content:'▾'; font-size:9px; color:var(--text-dim); margin-left:8px;
   }
   .h2-title { display:flex; align-items:center; gap:7px; }
-  .h2-icon { display:flex; flex-shrink:0; }
+  .h2-icon {
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    width:20px; height:20px; border-radius:5px; background: rgba(0,0,0,0.35);
+  }
   section.collapsed h2::after { content:'▸'; }
   section.collapsed .section-body { display:none; }
   button {
@@ -835,6 +840,10 @@
     const n = parseInt(hex.slice(1), 16);
     return 'rgba(' + ((n>>16)&255) + ',' + ((n>>8)&255) + ',' + (n&255) + ',' + a + ')';
   }
+  function hexToRgbTriplet(hex){
+    const n = parseInt(hex.slice(1), 16);
+    return ((n>>16)&255) + ',' + ((n>>8)&255) + ',' + (n&255);
+  }
 
   document.querySelectorAll('#panel > section').forEach(section => {
     const h2 = section.querySelector('h2');
@@ -861,7 +870,8 @@
       h2.textContent = '';
       h2.appendChild(wrapper);
       section.style.borderColor = hexToRgba(info.color, 0.75);
-      section.style.background = hexToRgba(info.color, 0.09);
+      section.style.setProperty('--sec-rgb', hexToRgbTriplet(info.color));
+      section.classList.add('has-color');
     }
   });
 
