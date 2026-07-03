@@ -2,6 +2,28 @@
 
 All notable changes to Blocking Tool are documented here.
 
+## [0.2.0] - 2026-07-03
+
+### Added
+- Articulated character rig: shoulder, elbow, hip, knee and neck joints, each with its own slider to pose it by hand
+- Stand / Sit / Lie pose presets built on that same joint system — Sit folds the hip/knee joints to roughly seat height instead of squashing the leg mesh, Lie tilts the whole body flat on the floor
+- Characters now have two independent legs (each with its own knee), instead of a single shared leg mesh
+- Skeleton view (characters only): swaps the solid mesh for colored bone cylinders and joint dots that track the live pose every frame — hands and face excluded
+- "Save image" — export a JPEG of the main view at the current playhead position, cropped to the selected Frame ratio (buttons in both the Export panel and the timeline toolbar)
+- 1:1 and 9:16 frame ratios
+- `G` shortcut to toggle the floor grid
+- App logo in the toolbar menu button (heading text moved into the opened dropdown), header/menu styling matched to storyboard.arnofaure.com
+- Favicons, web app manifest, SEO/Open Graph meta tags, a dedicated Open Graph share image, and a screenshot in the README
+
+### Changed
+- Panel section headers: full color when collapsed, dimmed when expanded so slider/button content stays readable; white title text that dims on hover; icon moved onto its own dark badge, separate from the colored label
+- Stronger hover outline on panel sections and a more visible white outline on the camera HUD
+- Camera HUD repositioned away from the corner
+
+### Fixed
+- Elbow joint bent in the anatomically wrong direction
+- Neck pivot was positioned at the head's center instead of its base, collapsing the skeleton view's neck bone to ~zero length
+
 ## [0.1.3] - 2026-07-02
 
 ### Fixed
