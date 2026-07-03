@@ -516,6 +516,7 @@
       <button id="tlAddKey">+ Keyframe</button>
       <button class="danger" id="tlDelKey">Delete keyframe</button>
       <button id="tlSaveFrame" title="Export a PNG of the current frame, cropped to the selected frame ratio">Save image</button>
+      <button id="tlSkeletonToggle" title="Toggle skeleton view for characters">Skeleton</button>
       <span class="hint" style="margin:0">Duration</span>
       <input type="number" id="tlDuration" value="6" min="1" max="60" step="1">
       <label class="hint" style="margin:0; display:flex; align-items:center; gap:5px" title="Smooth: a continuous spline through all keyframes. Off: eased stop at each keyframe.">
@@ -546,6 +547,9 @@
     </div>
     <button class="danger" id="delChar" disabled>Delete</button>
     <button id="groupBtn" disabled>Group selected</button>
+    <label class="hint" style="display:flex; align-items:center; gap:6px; margin-top:8px">
+      <input type="checkbox" id="skeletonToggle"> Skeleton view (characters only)
+    </label>
     <div class="hint">Drag a character or object to move it. Drag empty space to orbit the camera. In the top view, drag the white camera marker to move the camera. Double-click a name in the list to rename it. Check the boxes next to two or more items (or Ctrl/Cmd-click them), then "Group selected" to move and keyframe them together.</div>
     <div class="row align" style="margin-top:8px">
       <span class="label-sm">Units</span>
@@ -1233,10 +1237,14 @@
     torso.castShadow = true;
     bodyTilt.add(torso);
 
-    // Neck (user joint) -> head
+    // Neck (user joint) -> head. The pivot sits at the base of the neck (torso
+    // top), with the head offset up by its own radius, so nodding rotates the
+    // head from the neck rather than spinning it in place around its center —
+    // and the skeleton view gets an actual neck segment instead of a zero-length one.
     const neck = new THREE.Group();
     bodyTilt.add(neck);
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 16), mat);
+    head.position.y = 0.18;
     head.castShadow = true;
     neck.add(head);
 
@@ -1282,12 +1290,100 @@
     seat.visible = false;
     bodyTilt.add(seat);
 
-    root.userData.parts = { bodyTilt, legL, legR, torso, neck, head, shoulderL, shoulderR, elbowL, elbowR, seat, mat, matDim };
+    // Invisible tip markers at the end of each forearm/shin, purely so the
+    // skeleton view has a wrist/ankle point to draw to (elbow/knee are
+    // already joints themselves, so they don't need one).
+    function addTip(parent, y){
+      const tip = new THREE.Object3D();
+      tip.position.y = y;
+      parent.add(tip);
+      return tip;
+    }
+    const wristL = addTip(elbowL, -0.3);
+    const wristR = addTip(elbowR, -0.3);
+    const ankleL = addTip(legL.knee, -0.45);
+    const ankleR = addTip(legR.knee, -0.45);
+
+    root.userData.parts = {
+      bodyTilt, legL, legR, torso, neck, head, shoulderL, shoulderR, elbowL, elbowR,
+      wristL, wristR, ankleL, ankleR, seat, mat, matDim
+    };
+    root.userData.skeleton = buildSkeletonRig(root);
     applyPose(root, 'stand');
     JOINT_NAMES.forEach(n => setJoint(root, n, 0));
     return root;
   }
 
+  // ---------- Skeleton view: colored bone lines + joint dots, body only ----------
+  const SKELETON_BONES = [
+    ['head','neck'], ['neck','shoulderL'], ['neck','shoulderR'],
+    ['shoulderL','elbowL'], ['elbowL','wristL'],
+    ['shoulderR','elbowR'], ['elbowR','wristR'],
+    ['neck','hipL'], ['neck','hipR'],
+    ['hipL','kneeL'], ['kneeL','ankleL'],
+    ['hipR','kneeR'], ['kneeR','ankleR'],
+  ];
+
+  function buildSkeletonRig(root){
+    const p = root.userData.parts;
+    const joints = {
+      head: p.head, neck: p.neck, shoulderL: p.shoulderL, shoulderR: p.shoulderR,
+      elbowL: p.elbowL, elbowR: p.elbowR, wristL: p.wristL, wristR: p.wristR,
+      hipL: p.legL.hip, hipR: p.legR.hip, kneeL: p.legL.knee, kneeR: p.legR.knee,
+      ankleL: p.ankleL, ankleR: p.ankleR
+    };
+    const rig = new THREE.Group();
+    rig.visible = false;
+    root.add(rig);
+
+    // Bones are thin cylinders rather than THREE.Line — WebGL ignores
+    // LineBasicMaterial's linewidth on most platforms, so real geometry is
+    // the only reliable way to get a visibly thick stroke cross-browser.
+    const boneGeo = new THREE.CylinderGeometry(0.014, 0.014, 1, 6);
+    const boneLines = SKELETON_BONES.map(([a, b], i) => {
+      const color = new THREE.Color().setHSL(i / SKELETON_BONES.length, 0.85, 0.55);
+      const mesh = new THREE.Mesh(boneGeo, new THREE.MeshBasicMaterial({ color }));
+      rig.add(mesh);
+      return { a: joints[a], b: joints[b], mesh };
+    });
+
+    const dotGeo = new THREE.SphereGeometry(0.03, 8, 8);
+    const headDotGeo = new THREE.SphereGeometry(0.09, 12, 12);
+    const dotMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const jointDots = Object.entries(joints).map(([name, obj]) => {
+      const dot = new THREE.Mesh(name === 'head' ? headDotGeo : dotGeo, dotMat);
+      rig.add(dot);
+      return { obj, dot };
+    });
+
+    return { rig, boneLines, jointDots };
+  }
+
+  const skeletonTmpA = new THREE.Vector3();
+  const skeletonTmpB = new THREE.Vector3();
+  const skeletonUp = new THREE.Vector3(0, 1, 0);
+  function updateSkeletonRig(root){
+    const { boneLines, jointDots } = root.userData.skeleton;
+    boneLines.forEach(({ a, b, mesh }) => {
+      a.getWorldPosition(skeletonTmpA); root.worldToLocal(skeletonTmpA);
+      b.getWorldPosition(skeletonTmpB); root.worldToLocal(skeletonTmpB);
+      mesh.position.addVectors(skeletonTmpA, skeletonTmpB).multiplyScalar(0.5);
+      const dir = skeletonTmpB.clone().sub(skeletonTmpA);
+      const len = dir.length();
+      mesh.scale.set(1, len, 1);
+      if (len > 1e-6) mesh.quaternion.setFromUnitVectors(skeletonUp, dir.normalize());
+    });
+    jointDots.forEach(({ obj, dot }) => {
+      obj.getWorldPosition(skeletonTmpA); root.worldToLocal(skeletonTmpA);
+      dot.position.copy(skeletonTmpA);
+    });
+  }
+
+  let skeletonViewOn = false;
+  function setSkeletonView(root, on){
+    root.userData.parts.bodyTilt.visible = !on;
+    root.userData.skeleton.rig.visible = on;
+  }
 
   // Legs stay full length; sitting folds them via the hip/knee joints instead of
   // squashing the mesh, so "Sit" is just a preset on top of the same joint system
@@ -1309,7 +1405,7 @@
 
     const baseHeight = sitting ? 0.38 : 0.9;
     torso.position.y = baseHeight + 0.35;
-    neck.position.y = baseHeight + 0.7 + 0.18;
+    neck.position.y = baseHeight + 0.7;
     const shoulderY = torso.position.y + 0.3;
     shoulderL.position.set(-0.28, shoulderY, 0);
     shoulderR.position.set(0.28, shoulderY, 0);
@@ -1356,6 +1452,7 @@
     root.position.set(typeof x === 'number' ? x : (Math.random()*2-1), 0, typeof z === 'number' ? z : (Math.random()*2-1));
     root.userData.name = 'Char ' + (characters.length + 1);
     root.userData.keyframes = [];
+    if (skeletonViewOn) setSkeletonView(root, true);
     scene.add(root);
     characters.push(root);
     select(root);
@@ -1765,6 +1862,16 @@
   });
 
   document.getElementById('gridToggle').onchange = (e) => { grid.visible = e.target.checked; };
+  const skeletonToggle = document.getElementById('skeletonToggle');
+  const tlSkeletonToggle = document.getElementById('tlSkeletonToggle');
+  function applySkeletonToggle(on){
+    skeletonViewOn = on;
+    skeletonToggle.checked = on;
+    tlSkeletonToggle.classList.toggle('active', on);
+    characters.forEach(root => setSkeletonView(root, on));
+  }
+  skeletonToggle.onchange = (e) => applySkeletonToggle(e.target.checked);
+  tlSkeletonToggle.onclick = () => applySkeletonToggle(!skeletonViewOn);
 
   // ---------- Pointer interaction: orbit vs drag-character ----------
   const raycaster = new THREE.Raycaster();
@@ -2787,6 +2894,7 @@
   addCharacter(0.8, -0.4);
 
   function render(){
+    if (skeletonViewOn){ scene.updateMatrixWorld(); characters.forEach(updateSkeletonRig); }
     renderer.setScissorTest(false);
     renderer.setViewport(0, 0, viewport.w, viewport.h);
     renderer.render(scene, camera);
