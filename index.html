@@ -505,7 +505,7 @@
     <button class="primary" id="addChar">+ Add character</button>
     <div id="charList"></div>
     <div class="row" style="margin-bottom:6px">
-      <button id="poseToggle" disabled>Stand / Sit</button>
+      <button id="poseToggle" disabled>Stand / Sit / Lie</button>
     </div>
     <button class="danger" id="delChar" disabled>Delete</button>
     <button id="groupBtn" disabled>Group selected</button>
@@ -534,6 +534,53 @@
       <span class="label-sm">Rotate</span>
       <input type="range" id="objRotation" min="0" max="360" step="1" value="0">
       <span class="hint" style="margin:0; width:34px; text-align:right" id="objRotationLabel">0°</span>
+    </div>
+    <div class="row align" id="jointsRow" style="margin-top:8px; display:none; flex-direction:column; align-items:stretch; gap:6px">
+      <div class="row align">
+        <span class="label-sm">Shoulder L</span>
+        <input type="range" id="jointShoulderL" min="-150" max="150" step="1" value="0">
+        <span class="hint" style="margin:0; width:34px; text-align:right" id="jointShoulderLLabel">0°</span>
+      </div>
+      <div class="row align">
+        <span class="label-sm">Shoulder R</span>
+        <input type="range" id="jointShoulderR" min="-150" max="150" step="1" value="0">
+        <span class="hint" style="margin:0; width:34px; text-align:right" id="jointShoulderRLabel">0°</span>
+      </div>
+      <div class="row align">
+        <span class="label-sm">Elbow L</span>
+        <input type="range" id="jointElbowL" min="0" max="150" step="1" value="0">
+        <span class="hint" style="margin:0; width:34px; text-align:right" id="jointElbowLLabel">0°</span>
+      </div>
+      <div class="row align">
+        <span class="label-sm">Elbow R</span>
+        <input type="range" id="jointElbowR" min="0" max="150" step="1" value="0">
+        <span class="hint" style="margin:0; width:34px; text-align:right" id="jointElbowRLabel">0°</span>
+      </div>
+      <div class="row align">
+        <span class="label-sm">Hip L</span>
+        <input type="range" id="jointHipL" min="-100" max="100" step="1" value="0">
+        <span class="hint" style="margin:0; width:34px; text-align:right" id="jointHipLLabel">0°</span>
+      </div>
+      <div class="row align">
+        <span class="label-sm">Hip R</span>
+        <input type="range" id="jointHipR" min="-100" max="100" step="1" value="0">
+        <span class="hint" style="margin:0; width:34px; text-align:right" id="jointHipRLabel">0°</span>
+      </div>
+      <div class="row align">
+        <span class="label-sm">Knee L</span>
+        <input type="range" id="jointKneeL" min="0" max="130" step="1" value="0">
+        <span class="hint" style="margin:0; width:34px; text-align:right" id="jointKneeLLabel">0°</span>
+      </div>
+      <div class="row align">
+        <span class="label-sm">Knee R</span>
+        <input type="range" id="jointKneeR" min="0" max="130" step="1" value="0">
+        <span class="hint" style="margin:0; width:34px; text-align:right" id="jointKneeRLabel">0°</span>
+      </div>
+      <div class="row align">
+        <span class="label-sm">Head</span>
+        <input type="range" id="jointNeck" min="-60" max="60" step="1" value="0">
+        <span class="hint" style="margin:0; width:34px; text-align:right" id="jointNeckLabel">0°</span>
+      </div>
     </div>
     <div class="row align" id="propScaleRow" style="margin-top:8px; display:none; flex-direction:column; align-items:stretch; gap:6px">
       <div class="row align">
@@ -1095,24 +1142,53 @@
     if (i >= 0) groups.splice(i, 1);
   }
 
+  const JOINT_NAMES = ['shoulderL','shoulderR','elbowL','elbowR','hipL','hipR','kneeL','kneeR','neck'];
+
   function buildCharacter(color){
     const root = new THREE.Group();
     root.userData.pose = 'stand';
+    root.userData.joints = { shoulderL:0, shoulderR:0, elbowL:0, elbowR:0, hipL:0, hipR:0, kneeL:0, kneeR:0, neck:0 };
 
     const mat = new THREE.MeshStandardMaterial({ color, roughness:0.6 });
     const matDim = new THREE.MeshStandardMaterial({ color, roughness:0.6, emissive:0x000000 });
 
-    const legs = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.9, 12), mat);
-    legs.castShadow = true;
-    root.add(legs);
+    // bodyTilt carries the whole-body lean for the "lie" pose, separate from
+    // root's own position/rotation.y (placement + facing, used everywhere else).
+    const bodyTilt = new THREE.Group();
+    root.add(bodyTilt);
+
+    // Legs: hip (structural, follows stand/sit) -> thigh -> knee (user joint) -> shin.
+    // Each pivot sits at the TOP of the segment below it, so the segment hangs
+    // like a pendulum and rotating the pivot bends the limb at that joint.
+    // Two independent legs, offset left/right so they read as separate limbs.
+    function buildLeg(xOffset){
+      const legGeo = new THREE.CylinderGeometry(0.095, 0.095, 0.45, 12);
+      const hip = new THREE.Group();
+      hip.position.x = xOffset;
+      bodyTilt.add(hip);
+      const thigh = new THREE.Mesh(legGeo, mat);
+      thigh.castShadow = true;
+      hip.add(thigh);
+      const knee = new THREE.Group();
+      hip.add(knee);
+      const shin = new THREE.Mesh(legGeo, mat);
+      shin.castShadow = true;
+      knee.add(shin);
+      return { hip, thigh, knee, shin };
+    }
+    const legL = buildLeg(-0.1);
+    const legR = buildLeg(0.1);
 
     const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.19, 0.7, 12), mat);
     torso.castShadow = true;
-    root.add(torso);
+    bodyTilt.add(torso);
 
+    // Neck (user joint) -> head
+    const neck = new THREE.Group();
+    bodyTilt.add(neck);
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 16), mat);
     head.castShadow = true;
-    root.add(head);
+    neck.add(head);
 
     // eyes + mouth on the front of the head, so front/back reads clearly at a glance
     const faceMat = new THREE.MeshBasicMaterial({ color: 0x1a1210 });
@@ -1127,10 +1203,26 @@
     mouth.position.set(0, -0.06, 0.168);
     head.add(mouth);
 
-    const armGeo = new THREE.CylinderGeometry(0.06, 0.06, 0.6, 8);
-    const armL = new THREE.Mesh(armGeo, mat); armL.castShadow = true;
-    const armR = new THREE.Mesh(armGeo, mat); armR.castShadow = true;
-    root.add(armL, armR);
+    // Arms: shoulder (user joint) -> upper arm -> elbow (user joint) -> forearm.
+    function buildArm(){
+      const armGeo = new THREE.CylinderGeometry(0.06, 0.06, 0.3, 8);
+      const shoulder = new THREE.Group();
+      const upper = new THREE.Mesh(armGeo, mat);
+      upper.position.y = -0.15;
+      upper.castShadow = true;
+      shoulder.add(upper);
+      const elbow = new THREE.Group();
+      elbow.position.y = -0.3;
+      shoulder.add(elbow);
+      const forearm = new THREE.Mesh(armGeo, mat);
+      forearm.position.y = -0.15;
+      forearm.castShadow = true;
+      elbow.add(forearm);
+      return { shoulder, elbow };
+    }
+    const { shoulder: shoulderL, elbow: elbowL } = buildArm();
+    const { shoulder: shoulderR, elbow: elbowR } = buildArm();
+    bodyTilt.add(shoulderL, shoulderR);
 
     const seat = new THREE.Mesh(
       new THREE.BoxGeometry(0.5, 0.42, 0.5),
@@ -1138,40 +1230,72 @@
     );
     seat.castShadow = true; seat.receiveShadow = true;
     seat.visible = false;
-    root.add(seat);
+    bodyTilt.add(seat);
 
-    root.userData.parts = { legs, torso, head, armL, armR, seat, mat, matDim };
+    root.userData.parts = { bodyTilt, legL, legR, torso, neck, head, shoulderL, shoulderR, elbowL, elbowR, seat, mat, matDim };
     applyPose(root, 'stand');
+    JOINT_NAMES.forEach(n => setJoint(root, n, 0));
     return root;
   }
 
-  const ARM_LEN = 0.6;
-
+  // Legs stay full length; sitting folds them via the hip/knee joints instead of
+  // squashing the mesh, so "Sit" is just a preset on top of the same joint system
+  // the user can fine-tune with the sliders afterwards.
   function applyPose(root, pose){
-    const { legs, torso, head, armL, armR, seat } = root.userData.parts;
+    const { bodyTilt, legL, legR, torso, neck, shoulderL, shoulderR, seat } = root.userData.parts;
     root.userData.pose = pose;
-    if (pose === 'stand'){
-      legs.scale.set(1,1,1);
-      legs.position.y = 0.45;
-      torso.position.y = 0.9 + 0.35;
-      head.position.y = 0.9 + 0.7 + 0.18;
-      const shoulderY = torso.position.y + 0.3;
-      armL.position.set(-0.28, shoulderY - ARM_LEN/2, 0);
-      armR.position.set(0.28, shoulderY - ARM_LEN/2, 0);
-      armL.rotation.z = 0.05; armR.rotation.z = -0.05;
-      seat.visible = false;
+    const sitting = pose === 'sit';
+    const lying = pose === 'lie';
+
+    [legL, legR].forEach(({ hip, thigh, knee, shin }) => {
+      thigh.scale.y = 1; thigh.position.y = -0.225;
+      knee.position.y = -0.45;
+      shin.scale.y = 1; shin.position.y = -0.225;
+    });
+    const hipY = sitting ? 0.9 * 0.42 : 0.9; // lower hip anchor to roughly seat height when sitting
+    legL.hip.position.y = hipY;
+    legR.hip.position.y = hipY;
+
+    const baseHeight = sitting ? 0.38 : 0.9;
+    torso.position.y = baseHeight + 0.35;
+    neck.position.y = baseHeight + 0.7 + 0.18;
+    const shoulderY = torso.position.y + 0.3;
+    shoulderL.position.set(-0.28, shoulderY, 0);
+    shoulderR.position.set(0.28, shoulderY, 0);
+    shoulderL.rotation.z = 0.05; shoulderR.rotation.z = -0.05;
+
+    seat.position.y = 0.21;
+    seat.visible = sitting;
+
+    if (sitting){
+      setJoint(root, 'hipL', -90); setJoint(root, 'hipR', -90);
+      setJoint(root, 'kneeL', 90); setJoint(root, 'kneeR', 90);
     } else {
-      legs.scale.set(1, 0.42, 1);
-      legs.position.y = 0.19;
-      torso.position.y = 0.38 + 0.35;
-      head.position.y = 0.38 + 0.7 + 0.18;
-      const shoulderY = torso.position.y + 0.3;
-      armL.position.set(-0.28, shoulderY - ARM_LEN/2, 0);
-      armR.position.set(0.28, shoulderY - ARM_LEN/2, 0);
-      armL.rotation.z = 0.05; armR.rotation.z = -0.05;
-      seat.position.y = 0.21;
-      seat.visible = true;
+      setJoint(root, 'hipL', 0); setJoint(root, 'hipR', 0);
+      setJoint(root, 'kneeL', 0); setJoint(root, 'kneeR', 0);
     }
+
+    // Whole-body tilt for lying down; the pivot is at the character's own
+    // floor-level origin, so the tilted body lands flat on the ground.
+    bodyTilt.rotation.x = lying ? -Math.PI / 2 : 0;
+    bodyTilt.position.y = lying ? 0.2 : 0;
+  }
+
+  // Joint angles are a static pose property (not keyframed/animated): shoulders
+  // and elbows bend forward/back, the knee bends the shin, the neck nods the head.
+  function setJoint(root, name, deg){
+    root.userData.joints[name] = deg;
+    const rad = deg * Math.PI / 180;
+    const p = root.userData.parts;
+    if (name === 'shoulderL') p.shoulderL.rotation.x = rad;
+    else if (name === 'shoulderR') p.shoulderR.rotation.x = rad;
+    else if (name === 'elbowL') p.elbowL.rotation.x = -rad;
+    else if (name === 'elbowR') p.elbowR.rotation.x = -rad;
+    else if (name === 'hipL') p.legL.hip.rotation.x = rad;
+    else if (name === 'hipR') p.legR.hip.rotation.x = rad;
+    else if (name === 'kneeL') p.legL.knee.rotation.x = rad;
+    else if (name === 'kneeR') p.legR.knee.rotation.x = rad;
+    else if (name === 'neck') p.neck.rotation.x = rad;
   }
 
   function addCharacter(x, z){
@@ -1276,6 +1400,12 @@
       if (deg < 0) deg += 360;
       document.getElementById('objRotation').value = deg;
       document.getElementById('objRotationLabel').textContent = deg + '°';
+    }
+    const jointsRow = document.getElementById('jointsRow');
+    jointsRow.style.display = isChar ? 'flex' : 'none';
+    if (isChar){
+      const j = selected.userData.joints;
+      JOINT_NAMES.forEach(n => setJointSliderUI(n, j[n]));
     }
     refreshList();
     const selName = !selected ? 'Nothing selected' : selected === 'camera' ? 'Camera' : selected.userData.name;
@@ -1387,7 +1517,8 @@
       const pose = document.createElement('div');
       pose.className = 'pose-tag';
       const kfCount = (root.userData.keyframes || []).length;
-      pose.textContent = (root.userData.pose === 'stand' ? 'standing' : 'sitting') + (kfCount ? ' · ' + kfCount + ' kf' : '');
+      const poseLabel = { stand: 'standing', sit: 'sitting', lie: 'lying' }[root.userData.pose];
+      pose.textContent = poseLabel + (kfCount ? ' · ' + kfCount + ' kf' : '');
       item.append(makeMultiCheckbox(root), dot, label, pose);
       item.onclick = multiSelectClick(root, label);
       list.appendChild(item);
@@ -1483,12 +1614,31 @@
     selected.rotation.y = deg * Math.PI / 180;
     document.getElementById('objRotationLabel').textContent = deg + '°';
   };
+  const POSE_ORDER = ['stand', 'sit', 'lie'];
   document.getElementById('poseToggle').onclick = () => {
     if (!selected || selected === 'camera') return;
     pushUndo();
-    applyPose(selected, selected.userData.pose === 'stand' ? 'sit' : 'stand');
-    refreshList();
+    const next = POSE_ORDER[(POSE_ORDER.indexOf(selected.userData.pose) + 1) % POSE_ORDER.length];
+    applyPose(selected, next);
+    select(selected); // re-syncs the joint sliders, since the sit/stand presets change them
   };
+
+  function jointSliderId(name){ return 'joint' + name[0].toUpperCase() + name.slice(1); }
+  function setJointSliderUI(name, deg){
+    const id = jointSliderId(name);
+    document.getElementById(id).value = deg;
+    document.getElementById(id + 'Label').textContent = Math.round(deg) + '°';
+  }
+  JOINT_NAMES.forEach(name => {
+    const el = document.getElementById(jointSliderId(name));
+    el.addEventListener('pointerdown', pushUndo);
+    el.oninput = (e) => {
+      if (!selected || selected === 'camera' || !selected.userData.parts) return;
+      const deg = parseFloat(e.target.value);
+      setJoint(selected, name, deg);
+      document.getElementById(jointSliderId(name) + 'Label').textContent = Math.round(deg) + '°';
+    };
+  });
   document.getElementById('delChar').onclick = () => {
     if (!selected || selected === 'camera') return;
     if (selected.isCharGroup){
@@ -2224,6 +2374,7 @@
         x: root.position.x, z: root.position.z, rotY: root.rotation.y,
         pose: root.userData.pose, name: root.userData.name,
         color: root.userData.parts.mat.color.getHex(),
+        joints: {...root.userData.joints},
         keyframes: (root.userData.keyframes || []).map(k => ({...k}))
       })),
       objects: objects.map(mesh => ({
@@ -2319,6 +2470,7 @@
       applyPose(root, c.pose);
       root.userData.parts.mat.color.setHex(c.color);
       if (typeof c.rotY === 'number') root.rotation.y = c.rotY;
+      JOINT_NAMES.forEach(n => setJoint(root, n, (c.joints && c.joints[n]) || 0));
     });
 
     shot.objects.forEach(o => {
