@@ -4,10 +4,12 @@ A 100% free, single-file 3D previs / shot-blocking web app — created for the l
 
 🔗 **[blocking.arnofaure.com](https://blocking.arnofaure.com)** · 📝 [Changelog](CHANGELOG.md)
 
+![Blocking Tool screenshot](docs/screenshot.jpg)
+
 ## Features
 
 - Place characters and simple props (car, bus, wall, house, table, chair) in a 3D scene, in both a main perspective view and a top-down view
-- Drag to move, rotate, and scale objects; stand/sit pose toggle for characters
+- Drag to move, rotate, and scale objects; stand/sit/lie pose presets plus per-joint posing (shoulders, elbows, hips, knees, head)
 - Real-world size readout for props in meters, feet & inches, or inches
 - Double-click any name in the list to rename it
 - Lock any character/object in place (`L`) so it can't be dragged by accident
