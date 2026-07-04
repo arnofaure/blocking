@@ -130,6 +130,26 @@
   }
   #help-close:hover { color:var(--text); }
 
+  /* DEPTH MAP MODAL */
+  /* No full-screen scrim/blur here on purpose — this floats over a corner of
+     the 3D view so you can see the live Depth view result while adjusting it. */
+  #depth-overlay {
+    display:none; position:fixed; right:20px; bottom:40px; z-index:300; pointer-events:none;
+  }
+  #depth-overlay.show { display:block; }
+  #depth-modal {
+    position:relative; pointer-events:auto; background: var(--panel); border:0.5px solid var(--border-hover);
+    border-radius:10px; max-width:300px; width:100%; padding:20px; color:var(--text);
+    box-shadow:0 12px 28px rgba(0,0,0,0.45);
+  }
+  #depth-modal h2 { font-size:15px; font-weight:600; margin:0 0 6px; }
+  #depth-modal .hint { margin:0 0 16px; }
+  #depth-close {
+    position:absolute; top:12px; right:12px; width:auto; margin:0; background:none; border:none;
+    color:var(--text-dim); cursor:pointer; padding:4px; line-height:1;
+  }
+  #depth-close:hover { color:var(--text); }
+
   /* SHORTCUTS MODAL */
   #shortcuts-overlay {
     display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5);
@@ -177,6 +197,9 @@
   #viewsDivider:hover, #viewsDivider.dragging { background: var(--accent); }
   canvas { display:block; width:100%; height:100%; cursor: grab; }
   #c { position:absolute; }
+  /* MeshDepthMaterial renders near=black/far=white; flip it visually here so
+     near reads as white/close and far as black, matching the export below. */
+  #c.depth-invert { filter: invert(1); }
   canvas.dragging { cursor: grabbing; }
   #topLabel {
     position:absolute; top:8px; left:8px; z-index:5; pointer-events:none;
@@ -357,6 +380,11 @@
     height:222px; flex-shrink:0; display:flex; flex-direction:column;
     background: #232323; border-top:0.5px solid var(--panel-border);
   }
+  #kfDivider {
+    height:6px; flex-shrink:0; cursor:row-resize;
+    background: var(--panel-border);
+  }
+  #kfDivider:hover, #kfDivider.dragging { background: var(--accent); }
   #kfToolbar {
     height:32px; flex-shrink:0; display:flex; flex-direction:row; align-items:center;
     gap:8px; padding:0 10px; border-bottom:0.5px solid var(--panel-border);
@@ -510,12 +538,15 @@
       <div id="topLabel">Top view</div>
     </div>
   </div>
+  <div id="kfDivider"></div>
   <div id="keyframePanel">
     <div id="kfToolbar">
       <button id="tlPlay">▶ Play</button>
       <button id="tlAddKey">+ Keyframe</button>
       <button class="danger" id="tlDelKey">Delete keyframe</button>
-      <button id="tlSaveFrame" title="Export a PNG of the current frame, cropped to the selected frame ratio">Save image</button>
+      <button id="tlSaveFrame" title="Export a JPEG of the current frame, cropped to the selected frame ratio">Save image</button>
+      <button id="tlSaveDepth" title="Export a grayscale depth map PNG of the current frame">Save depth map</button>
+      <button id="tlDepthToggle" title="Preview the depth map live in the main view">Depth view</button>
       <button id="tlSkeletonToggle" title="Toggle skeleton view for characters">Skeleton</button>
       <span class="hint" style="margin:0">Duration</span>
       <input type="number" id="tlDuration" value="6" min="1" max="60" step="1">
@@ -550,7 +581,9 @@
     <label class="hint" style="display:flex; align-items:center; gap:6px; margin-top:8px">
       <input type="checkbox" id="skeletonToggle"> Skeleton view (characters only)
     </label>
-    <div class="hint">Drag a character or object to move it. Drag empty space to orbit the camera. In the top view, drag the white camera marker to move the camera. Double-click a name in the list to rename it. Check the boxes next to two or more items (or Ctrl/Cmd-click them), then "Group selected" to move and keyframe them together.</div>
+    <label class="hint" style="display:flex; align-items:center; gap:6px; margin-top:4px">
+      <input type="checkbox" id="depthToggle"> Depth view (preview before exporting)
+    </label>
     <div class="row align" style="margin-top:8px">
       <span class="label-sm">Units</span>
       <select id="sizeUnit" style="flex:1">
@@ -571,10 +604,32 @@
       <button id="addTable">+ Table</button>
       <button id="addChair">+ Chair</button>
     </div>
+    <div class="row" style="margin-top:6px">
+      <button id="addSphere">+ Sphere</button>
+      <button id="addCube">+ Cube</button>
+      <button id="addPyramid">+ Pyramid</button>
+    </div>
+    <div class="row align" id="heightRow" style="margin-top:8px; display:none">
+      <span class="label-sm">Height</span>
+      <input type="range" id="objHeight" min="-2" max="5" step="0.05" value="0">
+      <span class="hint" style="margin:0; width:52px; text-align:right" id="objHeightLabel">0.00m</span>
+    </div>
     <div class="row align" id="rotationRow" style="margin-top:8px; display:none">
-      <span class="label-sm">Rotate</span>
+      <span class="label-sm">Rotate Y</span>
       <input type="range" id="objRotation" min="0" max="360" step="1" value="0">
       <span class="hint" style="margin:0; width:34px; text-align:right" id="objRotationLabel">0°</span>
+    </div>
+    <div class="row align" id="propRotateXZRow" style="margin-top:8px; display:none; flex-direction:column; align-items:stretch; gap:6px">
+      <div class="row align">
+        <span class="label-sm">Rotate X</span>
+        <input type="range" id="objRotationX" min="-180" max="180" step="1" value="0">
+        <span class="hint" style="margin:0; width:34px; text-align:right" id="objRotationXLabel">0°</span>
+      </div>
+      <div class="row align">
+        <span class="label-sm">Rotate Z</span>
+        <input type="range" id="objRotationZ" min="-180" max="180" step="1" value="0">
+        <span class="hint" style="margin:0; width:34px; text-align:right" id="objRotationZLabel">0°</span>
+      </div>
     </div>
     <div class="row align" id="jointsRow" style="margin-top:8px; display:none; flex-direction:column; align-items:stretch; gap:6px">
       <div class="row align">
@@ -776,6 +831,8 @@
     <div class="hint">Plays the whole shot from the start and records it automatically, stopping at the end of the timeline.</div>
     <button id="exportFrameBtn" style="margin-top:6px">Save frame as image</button>
     <div class="hint">Exports a JPEG of the main view at the current playhead position, cropped to the selected Frame ratio (or the full view if set to Free).</div>
+    <button id="exportDepthBtn" style="margin-top:6px">Save depth map…</button>
+    <div class="hint">Opens the depth map export settings (near/far range) before exporting.</div>
   </section>
 </div>
 
@@ -788,9 +845,10 @@
     <ol>
       <li><strong>Everything stays on your device.</strong> The tool runs entirely in your browser — nothing is uploaded, no account needed.</li>
       <li><strong>Add characters and objects</strong> from the left panel, then drag them in either the main view or the top view to place them. Drag empty space to orbit the camera; drag the white marker in the top view to move the camera itself.</li>
+      <li><strong>Rename</strong> any character or object by double-clicking its name in the list.</li>
       <li><strong>Camera.</strong> Use the Camera position sliders (or the on-screen HUD in the main view) for height/tilt/pan, and the Lens presets for focal length. Draw a camera path by holding Shift while dragging on the floor.</li>
       <li><strong>Keyframes.</strong> Select a character, object, camera, or group, move the playhead, then "+ Keyframe". Drag keyframe marks on the timeline to retime them.</li>
-      <li><strong>Group.</strong> Check two or more items in the list (or Ctrl/Cmd-click them) and hit "Group selected" to move and keyframe them together.</li>
+      <li><strong>Group.</strong> Check the boxes next to two or more items in the list (or Ctrl/Cmd-click them), then hit "Group selected" to move and keyframe them together.</li>
       <li><strong>Lock</strong> the selected item in place with the <strong>L</strong> key so it can't be dragged by accident.</li>
       <li><strong>Save your work</strong> with "+ Save shot", export the shot list as a file to back it up, and use Record to export a video of the timeline.</li>
     </ol>
@@ -826,6 +884,32 @@
     <h3>Characters / Objects list</h3>
     <div class="sc-row"><span>Rename an item</span><span class="sc-key">Double-click its name</span></div>
     <div class="sc-row"><span>Select multiple items to group</span><span class="sc-key">Ctrl/Cmd-click, or the checkbox</span></div>
+  </div>
+</div>
+
+<div id="depth-overlay">
+  <div id="depth-modal">
+    <button id="depth-close" title="Close">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </button>
+    <h2>Depth map export</h2>
+    <p class="hint">Near/white, far/black. Characters and props only — grid, camera path, and skeleton view are hidden.</p>
+    <label class="hint" style="display:flex; align-items:center; gap:6px; margin-bottom:10px">
+      <input type="checkbox" id="depthRangeAuto" checked> Auto range (fits the current characters/props)
+    </label>
+    <div class="row align" id="depthRangeRow" style="margin-bottom:10px; flex-direction:column; align-items:stretch; gap:6px">
+      <div class="row align">
+        <span class="label-sm">Near</span>
+        <input type="range" id="depthNear" min="0.05" max="20" step="0.05" value="0.5" disabled>
+        <span class="hint" style="margin:0; width:52px; text-align:right" id="depthNearLabel">0.50m</span>
+      </div>
+      <div class="row align">
+        <span class="label-sm">Far</span>
+        <input type="range" id="depthFar" min="0.1" max="100" step="0.1" value="10" disabled>
+        <span class="hint" style="margin:0; width:52px; text-align:right" id="depthFarLabel">10.0m</span>
+      </div>
+    </div>
+    <button class="primary" id="depthExportConfirm">Export PNG</button>
   </div>
 </div>
 
@@ -1030,6 +1114,29 @@
   viewsDivider.addEventListener('pointerup', ()=>{
     dividerDragging = false;
     viewsDivider.classList.remove('dragging');
+  });
+
+  // ---------- Resizable divider above the keyframe timeline (height only) ----------
+  const kfDivider = document.getElementById('kfDivider');
+  const keyframePanel = document.getElementById('keyframePanel');
+  const stageEl = document.getElementById('stage');
+  let kfDividerDragging = false;
+  kfDivider.addEventListener('pointerdown', (e)=>{
+    kfDividerDragging = true;
+    kfDivider.classList.add('dragging');
+    kfDivider.setPointerCapture(e.pointerId);
+  });
+  kfDivider.addEventListener('pointermove', (e)=>{
+    if (!kfDividerDragging) return;
+    const rect = stageEl.getBoundingClientRect();
+    let h = rect.bottom - e.clientY;
+    h = Math.max(120, Math.min(rect.height - 160, h));
+    keyframePanel.style.height = h + 'px';
+    resize();
+  });
+  kfDivider.addEventListener('pointerup', ()=>{
+    kfDividerDragging = false;
+    kfDivider.classList.remove('dragging');
   });
 
   document.getElementById('frameGuides').onchange = (e) => {
@@ -1484,27 +1591,40 @@
   };
 
   const PROP_SIZES = {
-    car:   { w:1.8, h:1.4, d:4.2, color:0x5b8bd9 },
-    bus:   { w:2.5, h:3.0, d:9.0, color:0xd9c34a },
-    wall:  { w:4.0, h:2.5, d:0.2, color:0x8a8d92 },
-    house: { w:6.0, h:4.5, d:7.0, color:0xb08968 },
-    table: { w:1.4, h:0.75, d:0.8, color:0x8a6a4a },
-    chair: { w:0.5, h:0.9, d:0.5, color:0x6a5038 }
+    car:     { w:1.8, h:1.4, d:4.2, color:0x5b8bd9 },
+    bus:     { w:2.5, h:3.0, d:9.0, color:0xd9c34a },
+    wall:    { w:4.0, h:2.5, d:0.2, color:0x8a8d92 },
+    house:   { w:6.0, h:4.5, d:7.0, color:0xb08968 },
+    table:   { w:1.4, h:0.75, d:0.8, color:0x8a6a4a },
+    chair:   { w:0.5, h:0.9, d:0.5, color:0x6a5038 },
+    sphere:  { w:1, h:1, d:1, color:0xe0584a },
+    cube:    { w:1, h:1, d:1, color:0x5bc9a8 },
+    pyramid: { w:1, h:1, d:1, color:0xd6a24a }
   };
 
+  // Primitives get a unit-size geometry so the Width/Height/Depth scale
+  // sliders (which multiply, starting from 1) map directly to meters.
+  function propGeometry(type, size){
+    if (type === 'sphere') return new THREE.SphereGeometry(0.5, 24, 16);
+    if (type === 'cube') return new THREE.BoxGeometry(1, 1, 1);
+    if (type === 'pyramid') return new THREE.ConeGeometry(0.6, 1, 4);
+    return new THREE.BoxGeometry(size.w, size.h, size.d);
+  }
+
   function updatePropY(mesh){
-    mesh.position.y = mesh.userData.baseHeight / 2 * mesh.scale.y;
+    mesh.position.y = mesh.userData.baseHeight / 2 * mesh.scale.y + (mesh.userData.heightOffset || 0);
   }
 
   function addProp(type, x, z){
     pushUndo();
     const size = PROP_SIZES[type];
     const mesh = new THREE.Mesh(
-      new THREE.BoxGeometry(size.w, size.h, size.d),
+      propGeometry(type, size),
       new THREE.MeshStandardMaterial({ color: size.color, roughness:0.75 })
     );
     mesh.castShadow = true; mesh.receiveShadow = true;
     mesh.userData.baseHeight = size.h;
+    mesh.userData.heightOffset = 0;
     mesh.position.set(typeof x === 'number' ? x : (Math.random()*4-2), size.h/2, typeof z === 'number' ? z : (Math.random()*4-2));
     mesh.userData.isProp = true;
     mesh.userData.keyframes = [];
@@ -1541,6 +1661,13 @@
       refreshPropLabels();
     }
     const isRotatable = isChar || isProp;
+    const heightRow = document.getElementById('heightRow');
+    heightRow.style.display = isRotatable ? 'flex' : 'none';
+    if (isRotatable){
+      const y = isProp ? (selected.userData.heightOffset || 0) : selected.position.y;
+      document.getElementById('objHeight').value = y;
+      document.getElementById('objHeightLabel').textContent = y.toFixed(2) + 'm';
+    }
     const rotationRow = document.getElementById('rotationRow');
     rotationRow.style.display = isRotatable ? 'flex' : 'none';
     if (isRotatable){
@@ -1548,6 +1675,16 @@
       if (deg < 0) deg += 360;
       document.getElementById('objRotation').value = deg;
       document.getElementById('objRotationLabel').textContent = deg + '°';
+    }
+    const propRotateXZRow = document.getElementById('propRotateXZRow');
+    propRotateXZRow.style.display = isProp ? 'flex' : 'none';
+    if (isProp){
+      let degX = Math.round(selected.rotation.x * 180 / Math.PI);
+      let degZ = Math.round(selected.rotation.z * 180 / Math.PI);
+      document.getElementById('objRotationX').value = degX;
+      document.getElementById('objRotationXLabel').textContent = degX + '°';
+      document.getElementById('objRotationZ').value = degZ;
+      document.getElementById('objRotationZLabel').textContent = degZ + '°';
     }
     const jointsRow = document.getElementById('jointsRow');
     jointsRow.style.display = isChar ? 'flex' : 'none';
@@ -1735,6 +1872,9 @@
   document.getElementById('addHouse').onclick = () => addProp('house');
   document.getElementById('addTable').onclick = () => addProp('table');
   document.getElementById('addChair').onclick = () => addProp('chair');
+  document.getElementById('addSphere').onclick = () => addProp('sphere');
+  document.getElementById('addCube').onclick = () => addProp('cube');
+  document.getElementById('addPyramid').onclick = () => addProp('pyramid');
   document.getElementById('propWidth').addEventListener('pointerdown', pushUndo);
   document.getElementById('propWidth').oninput = (e) => {
     if (!selected || selected === 'camera' || !selected.userData.isProp) return;
@@ -1761,6 +1901,32 @@
     const deg = parseFloat(e.target.value);
     selected.rotation.y = deg * Math.PI / 180;
     document.getElementById('objRotationLabel').textContent = deg + '°';
+  };
+  document.getElementById('objRotationX').addEventListener('pointerdown', pushUndo);
+  document.getElementById('objRotationX').oninput = (e) => {
+    if (!selected || selected === 'camera' || !selected.userData.isProp) return;
+    const deg = parseFloat(e.target.value);
+    selected.rotation.x = deg * Math.PI / 180;
+    document.getElementById('objRotationXLabel').textContent = deg + '°';
+  };
+  document.getElementById('objRotationZ').addEventListener('pointerdown', pushUndo);
+  document.getElementById('objRotationZ').oninput = (e) => {
+    if (!selected || selected === 'camera' || !selected.userData.isProp) return;
+    const deg = parseFloat(e.target.value);
+    selected.rotation.z = deg * Math.PI / 180;
+    document.getElementById('objRotationZLabel').textContent = deg + '°';
+  };
+  document.getElementById('objHeight').addEventListener('pointerdown', pushUndo);
+  document.getElementById('objHeight').oninput = (e) => {
+    if (!selected || selected === 'camera' || selected.isCharGroup) return;
+    const val = parseFloat(e.target.value);
+    if (selected.userData.isProp){
+      selected.userData.heightOffset = val;
+      updatePropY(selected);
+    } else {
+      selected.position.y = val;
+    }
+    document.getElementById('objHeightLabel').textContent = val.toFixed(2) + 'm';
   };
   const POSE_ORDER = ['stand', 'sit', 'lie'];
   document.getElementById('poseToggle').onclick = () => {
@@ -1872,6 +2038,18 @@
   }
   skeletonToggle.onchange = (e) => applySkeletonToggle(e.target.checked);
   tlSkeletonToggle.onclick = () => applySkeletonToggle(!skeletonViewOn);
+
+  const depthToggle = document.getElementById('depthToggle');
+  const tlDepthToggle = document.getElementById('tlDepthToggle');
+  function applyDepthToggle(on){
+    depthViewOn = on;
+    depthToggle.checked = on;
+    tlDepthToggle.classList.toggle('active', on);
+    canvas.classList.toggle('depth-invert', on);
+    if (on) openDepthModal();
+  }
+  depthToggle.onchange = (e) => applyDepthToggle(e.target.checked);
+  tlDepthToggle.onclick = () => applyDepthToggle(!depthViewOn);
 
   // ---------- Pointer interaction: orbit vs drag-character ----------
   const raycaster = new THREE.Raycaster();
@@ -2120,8 +2298,8 @@
     const kfs = getKeyframes(obj);
     let kf;
     if (obj === 'camera') kf = { t, radius, theta, phi, tx: target.x, ty: target.y, tz: target.z };
-    else if (obj.userData.isProp) kf = { t, x: obj.position.x, z: obj.position.z, rotY: obj.rotation.y };
-    else kf = { t, x: obj.position.x, z: obj.position.z, pose: obj.userData.pose, rotY: obj.rotation.y };
+    else if (obj.userData.isProp) kf = { t, x: obj.position.x, y: obj.position.y, z: obj.position.z, rotY: obj.rotation.y, rotX: obj.rotation.x, rotZ: obj.rotation.z };
+    else kf = { t, x: obj.position.x, y: obj.position.y, z: obj.position.z, pose: obj.userData.pose, rotY: obj.rotation.y };
     const i = kfs.findIndex(k => Math.abs(k.t - t) < 0.005);
     if (i >= 0) kfs[i] = kf;
     else { kfs.push(kf); kfs.sort((a,b)=>a.t-b.t); }
@@ -2194,17 +2372,26 @@
     return seg.a[field] + (seg.b[field] - seg.a[field]) * e;
   }
 
+  // Angle fields wrap around, so a plain lerp can spin the long way round —
+  // blend through the shortest signed delta instead. Kept linear-in-u (not a
+  // full spline) same as the original rotY handling this replaces.
+  function interpAngleField(kfs, seg, field){
+    const u = (smoothCurves && !isBoundarySegment(kfs, seg)) ? seg.u : easeInOut(seg.u);
+    const a = seg.a[field], b = seg.b[field];
+    const delta = ((b - a + Math.PI) % (Math.PI*2) + Math.PI*2) % (Math.PI*2) - Math.PI;
+    return a + delta * u;
+  }
+
   function applyKeyframesToObject(obj, t, hasPose){
     const kfs = getKeyframes(obj);
     if (!kfs.length) return;
     const seg = findKfSegment(kfs, t);
     obj.position.x = interpKfField(kfs, seg, 'x');
     obj.position.z = interpKfField(kfs, seg, 'z');
-    if (typeof seg.a.rotY === 'number' && typeof seg.b.rotY === 'number'){
-      const u = (smoothCurves && !isBoundarySegment(kfs, seg)) ? seg.u : easeInOut(seg.u);
-      const delta = ((seg.b.rotY - seg.a.rotY + Math.PI) % (Math.PI*2) + Math.PI*2) % (Math.PI*2) - Math.PI;
-      obj.rotation.y = seg.a.rotY + delta * u;
-    }
+    if (typeof seg.a.y === 'number' && typeof seg.b.y === 'number') obj.position.y = interpKfField(kfs, seg, 'y');
+    if (typeof seg.a.rotY === 'number' && typeof seg.b.rotY === 'number') obj.rotation.y = interpAngleField(kfs, seg, 'rotY');
+    if (typeof seg.a.rotX === 'number' && typeof seg.b.rotX === 'number') obj.rotation.x = interpAngleField(kfs, seg, 'rotX');
+    if (typeof seg.a.rotZ === 'number' && typeof seg.b.rotZ === 'number') obj.rotation.z = interpAngleField(kfs, seg, 'rotZ');
     if (hasPose){
       let poseKf = kfs[0];
       for (const k of kfs) if (k.t <= t) poseKf = k;
@@ -2533,15 +2720,18 @@
         follow: followPath
       },
       characters: characters.map(root => ({
-        x: root.position.x, z: root.position.z, rotY: root.rotation.y,
+        x: root.position.x, y: root.position.y, z: root.position.z, rotY: root.rotation.y,
         pose: root.userData.pose, name: root.userData.name,
         color: root.userData.parts.mat.color.getHex(),
         joints: {...root.userData.joints},
         keyframes: (root.userData.keyframes || []).map(k => ({...k}))
       })),
       objects: objects.map(mesh => ({
-        type: mesh.userData.type, x: mesh.position.x, z: mesh.position.z, rotY: mesh.rotation.y, name: mesh.userData.name,
-        scaleW: mesh.scale.x, scaleH: mesh.scale.y, keyframes: (mesh.userData.keyframes || []).map(k => ({...k}))
+        type: mesh.userData.type, x: mesh.position.x, z: mesh.position.z, name: mesh.userData.name,
+        rotY: mesh.rotation.y, rotX: mesh.rotation.x, rotZ: mesh.rotation.z,
+        scaleW: mesh.scale.x, scaleH: mesh.scale.y, scaleD: mesh.scale.z,
+        heightY: mesh.userData.heightOffset || 0,
+        keyframes: (mesh.userData.keyframes || []).map(k => ({...k}))
       }))
     };
   }
@@ -2632,6 +2822,7 @@
       applyPose(root, c.pose);
       root.userData.parts.mat.color.setHex(c.color);
       if (typeof c.rotY === 'number') root.rotation.y = c.rotY;
+      if (typeof c.y === 'number') root.position.y = c.y;
       JOINT_NAMES.forEach(n => setJoint(root, n, (c.joints && c.joints[n]) || 0));
     });
 
@@ -2642,9 +2833,13 @@
       mesh.userData.keyframes = (o.keyframes || []).map(k => ({...k}));
       const w = o.scaleW || o.scale || 1;
       const h = o.scaleH || o.scale || 1;
-      mesh.scale.set(w, h, w);
+      const d = o.scaleD || w;
+      mesh.scale.set(w, h, d);
+      mesh.userData.heightOffset = o.heightY || 0;
       updatePropY(mesh);
       if (typeof o.rotY === 'number') mesh.rotation.y = o.rotY;
+      if (typeof o.rotX === 'number') mesh.rotation.x = o.rotX;
+      if (typeof o.rotZ === 'number') mesh.rotation.z = o.rotZ;
     });
 
     select(null);
@@ -2750,10 +2945,17 @@
   document.getElementById('shortcuts-close').onclick = closeShortcuts;
   shortcutsOverlay.addEventListener('click', (e) => { if (e.target === shortcutsOverlay) closeShortcuts(); });
 
+  const depthOverlay = document.getElementById('depth-overlay');
+  function openDepthModal(){ depthOverlay.classList.add('show'); }
+  function closeDepthModal(){ depthOverlay.classList.remove('show'); }
+  document.getElementById('depth-close').onclick = closeDepthModal;
+  document.getElementById('depthExportConfirm').onclick = () => { exportDepthMap(); closeDepthModal(); };
+
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
     if (helpOverlay.classList.contains('show')) closeHelp();
     if (shortcutsOverlay.classList.contains('show')) closeShortcuts();
+    if (depthOverlay.classList.contains('show')) closeDepthModal();
   });
 
   // ---------- Camera move presets ----------
@@ -2854,39 +3056,162 @@
     if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
   }
 
-  function exportFrame(){
-    renderer.setScissorTest(false);
-    renderer.setViewport(0, 0, viewport.w, viewport.h);
-    renderer.render(scene, camera);
+  // Crops the just-rendered main canvas down to the selected Frame ratio guide
+  // (or returns it as-is if set to Free). Shared by the JPEG and depth-map export.
+  function cropToFrame(){
+    if (!frameAspect) return canvas;
+    // The canvas's backing buffer is bigger than its CSS size (devicePixelRatio),
+    // so scale the crop guide's CSS-pixel rect up to buffer pixels before cropping.
+    const scaleX = canvas.width / viewport.w;
+    const scaleY = canvas.height / viewport.h;
+    const sx = Math.round(frameRect.x * scaleX);
+    const sy = Math.round(frameRect.y * scaleY);
+    const sw = Math.round(frameRect.w * scaleX);
+    const sh = Math.round(frameRect.h * scaleY);
+    const off = document.createElement('canvas');
+    off.width = sw; off.height = sh;
+    off.getContext('2d').drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
+    return off;
+  }
 
-    let sourceCanvas = canvas;
-    if (frameAspect){
-      // The canvas's backing buffer is bigger than its CSS size (devicePixelRatio),
-      // so scale the crop guide's CSS-pixel rect up to buffer pixels before cropping.
-      const scaleX = canvas.width / viewport.w;
-      const scaleY = canvas.height / viewport.h;
-      const sx = Math.round(frameRect.x * scaleX);
-      const sy = Math.round(frameRect.y * scaleY);
-      const sw = Math.round(frameRect.w * scaleX);
-      const sh = Math.round(frameRect.h * scaleY);
-      const off = document.createElement('canvas');
-      off.width = sw; off.height = sh;
-      off.getContext('2d').drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
-      sourceCanvas = off;
-    }
-
+  function downloadCanvas(sourceCanvas, filename, mime, quality){
     sourceCanvas.toBlob((blob) => {
       if (!blob) return;
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'blocking-frame-' + currentTime.toFixed(1) + 's.jpg';
+      a.download = filename;
       a.click();
       URL.revokeObjectURL(url);
-    }, 'image/jpeg', 0.92);
+    }, mime, quality);
   }
+
+  function exportFrame(){
+    renderer.setScissorTest(false);
+    renderer.setViewport(0, 0, viewport.w, viewport.h);
+    renderer.render(scene, camera);
+    downloadCanvas(cropToFrame(), 'blocking-frame-' + currentTime.toFixed(1) + 's.jpg', 'image/jpeg', 0.92);
+  }
+
+  // Depth map: swap in MeshDepthMaterial for one render, with helper/overlay
+  // geometry (floor grid, camera path, skeleton dots) hidden so only real
+  // scene content — characters and props — shows up in the depth pass.
+  const depthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.BasicDepthPacking });
+  const depthBox = new THREE.Box3();
+  const depthSphere = new THREE.Sphere();
+
+  // The camera's normal near/far (0.1–2000, sized for the whole scene) spreads
+  // the 0-1 depth range over way more distance than any shot actually uses, so
+  // characters end up crushed into a sliver near white with no visible detail.
+  // Tighten near/far to just past the actual subjects for this pass instead.
+  let depthRangeAuto = true;
+  let depthNearManual = 0.5;
+  let depthFarManual = 10;
+
+  function fitDepthRangeToContent(){
+    if (!depthRangeAuto){
+      camera.near = Math.max(0.01, depthNearManual);
+      camera.far = Math.max(camera.near + 0.01, depthFarManual);
+      camera.updateProjectionMatrix();
+      return;
+    }
+    depthBox.makeEmpty();
+    let any = false;
+    characters.forEach(root => { depthBox.expandByObject(root); any = true; });
+    objects.forEach(mesh => { depthBox.expandByObject(mesh); any = true; });
+    if (!any) return;
+    depthBox.getBoundingSphere(depthSphere);
+    const dist = camera.position.distanceTo(depthSphere.center);
+    camera.near = Math.max(0.05, dist - depthSphere.radius - 0.5);
+    camera.far = dist + depthSphere.radius + 0.5;
+    camera.updateProjectionMatrix();
+  }
+
+  // Swaps in the depth material and hides helper/overlay geometry (floor grid,
+  // camera path, skeleton dots) for the duration of fn(), so only real scene
+  // content — characters and props — shows up in the depth pass, then restores
+  // everything (including the camera's normal near/far) afterwards.
+  function withDepthPass(fn){
+    const prevNear = camera.near, prevFar = camera.far;
+    const prevGrid = grid.visible;
+    grid.visible = false;
+    const prevPathLine = pathLine ? pathLine.visible : null;
+    const prevPathMarkers = pathMarkers ? pathMarkers.visible : null;
+    if (pathLine) pathLine.visible = false;
+    if (pathMarkers) pathMarkers.visible = false;
+    const charStates = characters.map(root => {
+      const prev = { bodyTilt: root.userData.parts.bodyTilt.visible, rig: root.userData.skeleton.rig.visible };
+      root.userData.parts.bodyTilt.visible = true;
+      root.userData.skeleton.rig.visible = false;
+      return prev;
+    });
+    // Empty space (no geometry, e.g. sky above the floor) has no depth of its
+    // own — it isn't drawn at all, so whatever the scene's background color
+    // happens to be (gray/white/dark swatch) shows through unchanged. Force it
+    // to white so "no data" reads the same as the far end of the depth scale.
+    const prevBackground = scene.background;
+    scene.background = new THREE.Color(0xffffff);
+
+    fitDepthRangeToContent();
+    scene.overrideMaterial = depthMaterial;
+    fn();
+    scene.overrideMaterial = null;
+
+    scene.background = prevBackground;
+    camera.near = prevNear; camera.far = prevFar;
+    camera.updateProjectionMatrix();
+    grid.visible = prevGrid;
+    if (pathLine) pathLine.visible = prevPathLine;
+    if (pathMarkers) pathMarkers.visible = prevPathMarkers;
+    characters.forEach((root, i) => {
+      root.userData.parts.bodyTilt.visible = charStates[i].bodyTilt;
+      root.userData.skeleton.rig.visible = charStates[i].rig;
+    });
+  }
+
+  // CSS `filter: invert()` (used for the live preview) only affects the visual
+  // display, not the pixels toBlob() reads — the exported file needs an actual
+  // repaint through a 2D context to flip near=black/far=white to near=white/far=black.
+  function invertCanvas(sourceCanvas){
+    const out = document.createElement('canvas');
+    out.width = sourceCanvas.width; out.height = sourceCanvas.height;
+    const ctx = out.getContext('2d');
+    ctx.filter = 'invert(1)';
+    ctx.drawImage(sourceCanvas, 0, 0);
+    return out;
+  }
+
+  function exportDepthMap(){
+    withDepthPass(() => {
+      renderer.setScissorTest(false);
+      renderer.setViewport(0, 0, viewport.w, viewport.h);
+      renderer.render(scene, camera);
+    });
+    // Lossless — a lossy JPEG would band the smooth depth gradient.
+    downloadCanvas(invertCanvas(cropToFrame()), 'blocking-depth-' + currentTime.toFixed(1) + 's.png', 'image/png');
+  }
+
+  let depthViewOn = false;
   document.getElementById('exportFrameBtn').onclick = exportFrame;
   document.getElementById('tlSaveFrame').onclick = exportFrame;
+  document.getElementById('exportDepthBtn').onclick = openDepthModal;
+  document.getElementById('tlSaveDepth').onclick = openDepthModal;
+
+  const depthNearInput = document.getElementById('depthNear');
+  const depthFarInput = document.getElementById('depthFar');
+  document.getElementById('depthRangeAuto').onchange = (e) => {
+    depthRangeAuto = e.target.checked;
+    depthNearInput.disabled = depthRangeAuto;
+    depthFarInput.disabled = depthRangeAuto;
+  };
+  document.getElementById('depthNear').oninput = (e) => {
+    depthNearManual = parseFloat(e.target.value);
+    document.getElementById('depthNearLabel').textContent = depthNearManual.toFixed(2) + 'm';
+  };
+  document.getElementById('depthFar').oninput = (e) => {
+    depthFarManual = parseFloat(e.target.value);
+    document.getElementById('depthFarLabel').textContent = depthFarManual.toFixed(1) + 'm';
+  };
 
   // ---------- Render loop ----------
   resize();
@@ -2897,7 +3222,11 @@
     if (skeletonViewOn){ scene.updateMatrixWorld(); characters.forEach(updateSkeletonRig); }
     renderer.setScissorTest(false);
     renderer.setViewport(0, 0, viewport.w, viewport.h);
-    renderer.render(scene, camera);
+    if (depthViewOn){
+      withDepthPass(() => renderer.render(scene, camera));
+    } else {
+      renderer.render(scene, camera);
+    }
     topRenderer.render(scene, topCamera);
     requestAnimationFrame(render);
   }
