@@ -336,6 +336,10 @@
     border-radius: var(--radius); padding:5px 6px; width:52px;
   }
   input[type="range"] { width:100%; accent-color: var(--text); }
+  .val-input {
+    width:46px; flex-shrink:0; padding:3px 4px; font-size:11px; text-align:right;
+    margin:0;
+  }
   input[type="checkbox"] { accent-color: var(--text); }
   .row input[type="range"] { flex:1; width:auto; min-width:0; }
   .row .label-sm { font-size:11px; color:var(--text-dim); width:44px; flex-shrink:0; }
@@ -550,9 +554,6 @@
       <button id="tlSkeletonToggle" title="Toggle skeleton view for characters">Skeleton</button>
       <span class="hint" style="margin:0">Duration</span>
       <input type="number" id="tlDuration" value="6" min="1" max="60" step="1">
-      <label class="hint" style="margin:0; display:flex; align-items:center; gap:5px" title="Smooth: a continuous spline through all keyframes. Off: eased stop at each keyframe.">
-        <input type="checkbox" id="smoothToggle" checked> Smooth
-      </label>
       <span class="hint" style="margin:0 0 0 auto" id="kfToolbarTime">0.0s</span>
     </div>
     <div id="kfBody">
@@ -602,7 +603,6 @@
     </div>
     <div class="row">
       <button id="addTable">+ Table</button>
-      <button id="addChair">+ Chair</button>
     </div>
     <div class="row" style="margin-top:6px">
       <button id="addSphere">+ Sphere</button>
@@ -612,70 +612,80 @@
     <div class="row align" id="heightRow" style="margin-top:8px; display:none">
       <span class="label-sm">Height</span>
       <input type="range" id="objHeight" min="-2" max="5" step="0.05" value="0">
-      <span class="hint" style="margin:0; width:52px; text-align:right" id="objHeightLabel">0.00m</span>
+      <input type="number" class="val-input" id="objHeightLabel" min="-2" max="5" step="0.05" value="0">
     </div>
     <div class="row align" id="rotationRow" style="margin-top:8px; display:none">
       <span class="label-sm">Rotate Y</span>
       <input type="range" id="objRotation" min="0" max="360" step="1" value="0">
-      <span class="hint" style="margin:0; width:34px; text-align:right" id="objRotationLabel">0°</span>
+      <input type="number" class="val-input" id="objRotationLabel" min="0" max="360" step="1" value="0">
     </div>
     <div class="row align" id="propRotateXZRow" style="margin-top:8px; display:none; flex-direction:column; align-items:stretch; gap:6px">
       <div class="row align">
         <span class="label-sm">Rotate X</span>
         <input type="range" id="objRotationX" min="-180" max="180" step="1" value="0">
-        <span class="hint" style="margin:0; width:34px; text-align:right" id="objRotationXLabel">0°</span>
+        <input type="number" class="val-input" id="objRotationXLabel" min="-180" max="180" step="1" value="0">
       </div>
       <div class="row align">
         <span class="label-sm">Rotate Z</span>
         <input type="range" id="objRotationZ" min="-180" max="180" step="1" value="0">
-        <span class="hint" style="margin:0; width:34px; text-align:right" id="objRotationZLabel">0°</span>
+        <input type="number" class="val-input" id="objRotationZLabel" min="-180" max="180" step="1" value="0">
       </div>
     </div>
     <div class="row align" id="jointsRow" style="margin-top:8px; display:none; flex-direction:column; align-items:stretch; gap:6px">
       <div class="row align">
         <span class="label-sm">Shoulder L</span>
         <input type="range" id="jointShoulderL" min="-150" max="150" step="1" value="0">
-        <span class="hint" style="margin:0; width:34px; text-align:right" id="jointShoulderLLabel">0°</span>
+        <input type="number" class="val-input" id="jointShoulderLLabel" min="-150" max="150" step="1" value="0">
       </div>
       <div class="row align">
         <span class="label-sm">Shoulder R</span>
         <input type="range" id="jointShoulderR" min="-150" max="150" step="1" value="0">
-        <span class="hint" style="margin:0; width:34px; text-align:right" id="jointShoulderRLabel">0°</span>
+        <input type="number" class="val-input" id="jointShoulderRLabel" min="-150" max="150" step="1" value="0">
+      </div>
+      <div class="row align">
+        <span class="label-sm" style="width:70px">Shoulder Out L</span>
+        <input type="range" id="jointShoulderOutL" min="0" max="100" step="1" value="17">
+        <input type="number" class="val-input" id="jointShoulderOutLLabel" min="0" max="100" step="1" value="17">
+      </div>
+      <div class="row align">
+        <span class="label-sm" style="width:70px">Shoulder Out R</span>
+        <input type="range" id="jointShoulderOutR" min="0" max="100" step="1" value="17">
+        <input type="number" class="val-input" id="jointShoulderOutRLabel" min="0" max="100" step="1" value="17">
       </div>
       <div class="row align">
         <span class="label-sm">Elbow L</span>
         <input type="range" id="jointElbowL" min="0" max="150" step="1" value="0">
-        <span class="hint" style="margin:0; width:34px; text-align:right" id="jointElbowLLabel">0°</span>
+        <input type="number" class="val-input" id="jointElbowLLabel" min="0" max="150" step="1" value="0">
       </div>
       <div class="row align">
         <span class="label-sm">Elbow R</span>
         <input type="range" id="jointElbowR" min="0" max="150" step="1" value="0">
-        <span class="hint" style="margin:0; width:34px; text-align:right" id="jointElbowRLabel">0°</span>
+        <input type="number" class="val-input" id="jointElbowRLabel" min="0" max="150" step="1" value="0">
       </div>
       <div class="row align">
         <span class="label-sm">Hip L</span>
         <input type="range" id="jointHipL" min="-100" max="100" step="1" value="0">
-        <span class="hint" style="margin:0; width:34px; text-align:right" id="jointHipLLabel">0°</span>
+        <input type="number" class="val-input" id="jointHipLLabel" min="-100" max="100" step="1" value="0">
       </div>
       <div class="row align">
         <span class="label-sm">Hip R</span>
         <input type="range" id="jointHipR" min="-100" max="100" step="1" value="0">
-        <span class="hint" style="margin:0; width:34px; text-align:right" id="jointHipRLabel">0°</span>
+        <input type="number" class="val-input" id="jointHipRLabel" min="-100" max="100" step="1" value="0">
       </div>
       <div class="row align">
         <span class="label-sm">Knee L</span>
         <input type="range" id="jointKneeL" min="0" max="130" step="1" value="0">
-        <span class="hint" style="margin:0; width:34px; text-align:right" id="jointKneeLLabel">0°</span>
+        <input type="number" class="val-input" id="jointKneeLLabel" min="0" max="130" step="1" value="0">
       </div>
       <div class="row align">
         <span class="label-sm">Knee R</span>
         <input type="range" id="jointKneeR" min="0" max="130" step="1" value="0">
-        <span class="hint" style="margin:0; width:34px; text-align:right" id="jointKneeRLabel">0°</span>
+        <input type="number" class="val-input" id="jointKneeRLabel" min="0" max="130" step="1" value="0">
       </div>
       <div class="row align">
         <span class="label-sm">Head</span>
         <input type="range" id="jointNeck" min="-60" max="60" step="1" value="0">
-        <span class="hint" style="margin:0; width:34px; text-align:right" id="jointNeckLabel">0°</span>
+        <input type="number" class="val-input" id="jointNeckLabel" min="-60" max="60" step="1" value="0">
       </div>
     </div>
     <div class="row align" id="propScaleRow" style="margin-top:8px; display:none; flex-direction:column; align-items:stretch; gap:6px">
@@ -1168,6 +1178,53 @@
   grid.position.y = 0.001;
   scene.add(grid);
 
+  // ---------- Selection indicators: floating marker + ground ring ----------
+  // A more obvious "this is selected" cue than the emissive tint alone —
+  // visible from a distance in the main view and readable in the top view too.
+  const selectionMarker = new THREE.Mesh(
+    new THREE.OctahedronGeometry(0.09, 0),
+    new THREE.MeshBasicMaterial({ color: 0xec4899 })
+  );
+  selectionMarker.visible = false;
+  scene.add(selectionMarker);
+
+  const selectionRing = new THREE.Mesh(
+    new THREE.RingGeometry(0.85, 1, 32),
+    new THREE.MeshBasicMaterial({ color: 0xec4899, side: THREE.DoubleSide, transparent: true, opacity: 0.85 })
+  );
+  selectionRing.rotation.x = -Math.PI / 2;
+  selectionRing.visible = false;
+  scene.add(selectionRing);
+
+  const selTmpBox = new THREE.Box3();
+  function updateSelectionIndicators(){
+    const showFor = (selected && selected !== 'camera' && !selected.isCharGroup
+      && (selected.userData.parts || selected.userData.isProp)) ? selected : null;
+    if (!showFor){
+      selectionMarker.visible = false;
+      selectionRing.visible = false;
+      return;
+    }
+    selTmpBox.setFromObject(showFor);
+    const cx = (selTmpBox.min.x + selTmpBox.max.x) / 2;
+    const cz = (selTmpBox.min.z + selTmpBox.max.z) / 2;
+    // Half-diagonal of the footprint, not half of the longest side — a ring
+    // sized to the longest side alone sits inside a box's corners instead of
+    // fully surrounding it.
+    const halfW = (selTmpBox.max.x - selTmpBox.min.x) / 2;
+    const halfD = (selTmpBox.max.z - selTmpBox.min.z) / 2;
+    const footprint = Math.sqrt(halfW * halfW + halfD * halfD);
+
+    selectionMarker.visible = true;
+    selectionMarker.position.set(cx, selTmpBox.max.y + 0.18, cz);
+    selectionMarker.rotation.y += 0.03;
+
+    selectionRing.visible = true;
+    selectionRing.position.set(cx, 0.015, cz);
+    const s = Math.max(0.3, footprint * 1.2);
+    selectionRing.scale.set(s, s, 1);
+  }
+
   // camera position/facing marker, mainly useful in the top-down view
   const camMarkerGeo = new THREE.ConeGeometry(0.35, 0.9, 3);
   camMarkerGeo.rotateX(-Math.PI/2); // apex now points along local -Z
@@ -1303,15 +1360,18 @@
     if (i >= 0) groups.splice(i, 1);
   }
 
-  const JOINT_NAMES = ['shoulderL','shoulderR','elbowL','elbowR','hipL','hipR','kneeL','kneeR','neck'];
+  const JOINT_NAMES = ['shoulderL','shoulderR','shoulderOutL','shoulderOutR','elbowL','elbowR','hipL','hipR','kneeL','kneeR','neck'];
 
   function buildCharacter(color){
     const root = new THREE.Group();
     root.userData.pose = 'stand';
-    root.userData.joints = { shoulderL:0, shoulderR:0, elbowL:0, elbowR:0, hipL:0, hipR:0, kneeL:0, kneeR:0, neck:0 };
+    root.userData.joints = {
+      shoulderL:0, shoulderR:0, shoulderOutL:0, shoulderOutR:0, elbowL:0, elbowR:0,
+      hipL:0, hipR:0, kneeL:0, kneeR:0, neck:0
+    };
 
-    const mat = new THREE.MeshStandardMaterial({ color, roughness:0.6 });
-    const matDim = new THREE.MeshStandardMaterial({ color, roughness:0.6, emissive:0x000000 });
+    const mat = new THREE.MeshStandardMaterial({ color, roughness:0.6, flatShading:true });
+    const matDim = new THREE.MeshStandardMaterial({ color, roughness:0.6, emissive:0x000000, flatShading:true });
 
     // bodyTilt carries the whole-body lean for the "lie" pose, separate from
     // root's own position/rotation.y (placement + facing, used everywhere else).
@@ -1323,63 +1383,69 @@
     // like a pendulum and rotating the pivot bends the limb at that joint.
     // Two independent legs, offset left/right so they read as separate limbs.
     function buildLeg(xOffset){
-      const legGeo = new THREE.CylinderGeometry(0.095, 0.095, 0.45, 12);
+      // Bottom radius matches the shin's top radius exactly, so there's no
+      // visible step/gap in silhouette at the knee joint.
+      const thighGeo = new THREE.CylinderGeometry(0.078, 0.062, 0.42, 6);
+      const shinGeo = new THREE.CylinderGeometry(0.062, 0.045, 0.42, 6);
       const hip = new THREE.Group();
       hip.position.x = xOffset;
       bodyTilt.add(hip);
-      const thigh = new THREE.Mesh(legGeo, mat);
+      const thigh = new THREE.Mesh(thighGeo, mat);
       thigh.castShadow = true;
       hip.add(thigh);
       const knee = new THREE.Group();
       hip.add(knee);
-      const shin = new THREE.Mesh(legGeo, mat);
+      const shin = new THREE.Mesh(shinGeo, mat);
       shin.castShadow = true;
       knee.add(shin);
       return { hip, thigh, knee, shin };
     }
-    const legL = buildLeg(-0.1);
-    const legR = buildLeg(0.1);
+    const legL = buildLeg(-0.06);
+    const legR = buildLeg(0.06);
 
-    const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.19, 0.7, 12), mat);
+    // Shoulders a bit wider than the waist, but a moderate taper (not a
+    // triangle) — closer to a rectangular torso block.
+    const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.115, 0.62, 6), mat);
     torso.castShadow = true;
     bodyTilt.add(torso);
 
+    // Pelvis — narrow and shallow so it just bridges the torso and the tops
+    // of the legs without a wide flat overhang (which read as a hard slit
+    // between the thighs). Its Y position is kept in sync with the hip
+    // anchor by applyPose.
+    const pelvis = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.1, 0.13), mat);
+    pelvis.castShadow = true;
+    bodyTilt.add(pelvis);
+
     // Neck (user joint) -> head. The pivot sits at the base of the neck (torso
-    // top), with the head offset up by its own radius, so nodding rotates the
-    // head from the neck rather than spinning it in place around its center —
-    // and the skeleton view gets an actual neck segment instead of a zero-length one.
+    // top), with the head offset up so nodding rotates the head from the neck
+    // rather than spinning it in place around its center — and the skeleton
+    // view gets an actual neck segment instead of a zero-length one.
     const neck = new THREE.Group();
     bodyTilt.add(neck);
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 16), mat);
-    head.position.y = 0.18;
+    // A low-segment sphere, squashed slightly on Y — an ovoid with a rounded
+    // (not pointed) top, keeping the faceted low-poly look.
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.135, 8, 6), mat);
+    head.scale.y = 0.85;
+    head.position.y = 0.135 * 0.85;
     head.castShadow = true;
     neck.add(head);
 
-    // eyes + mouth on the front of the head, so front/back reads clearly at a glance
-    const faceMat = new THREE.MeshBasicMaterial({ color: 0x1a1210 });
-    const eyeGeo = new THREE.SphereGeometry(0.022, 8, 8);
-    const eyeL = new THREE.Mesh(eyeGeo, faceMat);
-    eyeL.position.set(-0.065, 0.02, 0.163);
-    head.add(eyeL);
-    const eyeR = new THREE.Mesh(eyeGeo, faceMat);
-    eyeR.position.set(0.065, 0.02, 0.163);
-    head.add(eyeR);
-    const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.016, 0.012), faceMat);
-    mouth.position.set(0, -0.06, 0.168);
-    head.add(mouth);
-
     // Arms: shoulder (user joint) -> upper arm -> elbow (user joint) -> forearm.
     function buildArm(){
-      const armGeo = new THREE.CylinderGeometry(0.06, 0.06, 0.3, 8);
+      // Forearm's top radius matches the upper arm's bottom radius exactly,
+      // so there's no visible step at the elbow — just the bend itself.
+      const upperGeo = new THREE.CylinderGeometry(0.05, 0.042, 0.3, 6);
+      const foreGeo = new THREE.CylinderGeometry(0.042, 0.032, 0.3, 6);
       const shoulder = new THREE.Group();
-      const upper = new THREE.Mesh(armGeo, mat);
+      const upper = new THREE.Mesh(upperGeo, mat);
       upper.position.y = -0.15;
       upper.castShadow = true;
       shoulder.add(upper);
       const elbow = new THREE.Group();
       elbow.position.y = -0.3;
       shoulder.add(elbow);
-      const forearm = new THREE.Mesh(armGeo, mat);
+      const forearm = new THREE.Mesh(foreGeo, mat);
       forearm.position.y = -0.15;
       forearm.castShadow = true;
       elbow.add(forearm);
@@ -1408,16 +1474,37 @@
     }
     const wristL = addTip(elbowL, -0.3);
     const wristR = addTip(elbowR, -0.3);
-    const ankleL = addTip(legL.knee, -0.45);
-    const ankleR = addTip(legR.knee, -0.45);
+    const ankleL = addTip(legL.knee, -0.42);
+    const ankleR = addTip(legR.knee, -0.42);
+
+    // Hands (simple fists) and feet (simple shoes) — no fingers/toes, just
+    // enough of a block to read as a hand/foot at previs scale.
+    const handGeo = new THREE.BoxGeometry(0.06, 0.075, 0.05);
+    const handL = new THREE.Mesh(handGeo, mat);
+    handL.position.y = -0.0375; handL.castShadow = true;
+    wristL.add(handL);
+    const handR = new THREE.Mesh(handGeo, mat);
+    handR.position.y = -0.0375; handR.castShadow = true;
+    wristR.add(handR);
+
+    const shoeGeo = new THREE.BoxGeometry(0.075, 0.05, 0.26);
+    const shoeL = new THREE.Mesh(shoeGeo, mat);
+    shoeL.position.set(0, 0.025, 0.075); shoeL.castShadow = true;
+    ankleL.add(shoeL);
+    const shoeR = new THREE.Mesh(shoeGeo, mat);
+    shoeR.position.set(0, 0.025, 0.075); shoeR.castShadow = true;
+    ankleR.add(shoeR);
 
     root.userData.parts = {
-      bodyTilt, legL, legR, torso, neck, head, shoulderL, shoulderR, elbowL, elbowR,
-      wristL, wristR, ankleL, ankleR, seat, mat, matDim
+      bodyTilt, legL, legR, torso, pelvis, neck, head, shoulderL, shoulderR, elbowL, elbowR,
+      wristL, wristR, ankleL, ankleR, handL, handR, shoeL, shoeR, seat, mat, matDim
     };
     root.userData.skeleton = buildSkeletonRig(root);
     applyPose(root, 'stand');
     JOINT_NAMES.forEach(n => setJoint(root, n, 0));
+    // Rest pose is a slight A-pose, not arms-straight-down.
+    setJoint(root, 'shoulderOutL', 17);
+    setJoint(root, 'shoulderOutR', 17);
     return root;
   }
 
@@ -1496,27 +1583,36 @@
   // squashing the mesh, so "Sit" is just a preset on top of the same joint system
   // the user can fine-tune with the sliders afterwards.
   function applyPose(root, pose){
-    const { bodyTilt, legL, legR, torso, neck, shoulderL, shoulderR, seat } = root.userData.parts;
+    const { bodyTilt, legL, legR, torso, pelvis, neck, shoulderL, shoulderR, seat } = root.userData.parts;
     root.userData.pose = pose;
     const sitting = pose === 'sit';
     const lying = pose === 'lie';
 
     [legL, legR].forEach(({ hip, thigh, knee, shin }) => {
-      thigh.scale.y = 1; thigh.position.y = -0.225;
-      knee.position.y = -0.45;
-      shin.scale.y = 1; shin.position.y = -0.225;
+      thigh.scale.y = 1; thigh.position.y = -0.21;
+      knee.position.y = -0.42;
+      shin.scale.y = 1; shin.position.y = -0.21;
+      // Legs slightly apart for a stable A-pose stance (independent of the
+      // Hip L/R joint sliders, which drive rotation.x instead).
+      hip.rotation.z = 0;
     });
-    const hipY = sitting ? 0.9 * 0.42 : 0.9; // lower hip anchor to roughly seat height when sitting
+    legL.hip.rotation.z = -0.05;
+    legR.hip.rotation.z = 0.05;
+    const STAND_HIP_Y = 0.84; // full standing leg length (0.42 thigh + 0.42 shin)
+    const hipY = sitting ? STAND_HIP_Y * 0.42 : STAND_HIP_Y; // lower hip anchor to roughly seat height when sitting
     legL.hip.position.y = hipY;
     legR.hip.position.y = hipY;
+    pelvis.position.y = hipY;
 
-    const baseHeight = sitting ? 0.38 : 0.9;
-    torso.position.y = baseHeight + 0.35;
-    neck.position.y = baseHeight + 0.7;
-    const shoulderY = torso.position.y + 0.3;
-    shoulderL.position.set(-0.28, shoulderY, 0);
-    shoulderR.position.set(0.28, shoulderY, 0);
-    shoulderL.rotation.z = 0.05; shoulderR.rotation.z = -0.05;
+    const baseHeight = hipY; // torso sits directly on top of the hip anchor
+    torso.position.y = baseHeight + 0.31;
+    neck.position.y = baseHeight + 0.62;
+    const shoulderY = torso.position.y + 0.26;
+    shoulderL.position.set(-0.2, shoulderY, 0);
+    shoulderR.position.set(0.2, shoulderY, 0);
+    // The A-pose splay itself is now the Shoulder Out L/R joint's resting
+    // value (set once in buildCharacter), not reset here, so it stays
+    // user-adjustable across pose changes like every other joint.
 
     seat.position.y = 0.21;
     seat.visible = sitting;
@@ -1532,7 +1628,7 @@
     // Whole-body tilt for lying down; the pivot is at the character's own
     // floor-level origin, so the tilted body lands flat on the ground.
     bodyTilt.rotation.x = lying ? -Math.PI / 2 : 0;
-    bodyTilt.position.y = lying ? 0.2 : 0;
+    bodyTilt.position.y = lying ? 0.14 : 0;
   }
 
   // Joint angles are a static pose property (not keyframed/animated): shoulders
@@ -1543,6 +1639,9 @@
     const p = root.userData.parts;
     if (name === 'shoulderL') p.shoulderL.rotation.x = rad;
     else if (name === 'shoulderR') p.shoulderR.rotation.x = rad;
+    // Sideways raise (0° = arm down at rest, 90° = straight out to horizontal).
+    else if (name === 'shoulderOutL') p.shoulderL.rotation.z = -rad;
+    else if (name === 'shoulderOutR') p.shoulderR.rotation.z = rad;
     else if (name === 'elbowL') p.elbowL.rotation.x = -rad;
     else if (name === 'elbowR') p.elbowR.rotation.x = -rad;
     else if (name === 'hipL') p.legL.hip.rotation.x = rad;
@@ -1596,7 +1695,6 @@
     wall:    { w:4.0, h:2.5, d:0.2, color:0x8a8d92 },
     house:   { w:6.0, h:4.5, d:7.0, color:0xb08968 },
     table:   { w:1.4, h:0.75, d:0.8, color:0x8a6a4a },
-    chair:   { w:0.5, h:0.9, d:0.5, color:0x6a5038 },
     sphere:  { w:1, h:1, d:1, color:0xe0584a },
     cube:    { w:1, h:1, d:1, color:0x5bc9a8 },
     pyramid: { w:1, h:1, d:1, color:0xd6a24a }
@@ -1637,15 +1735,8 @@
     refreshList();
   }
 
-  function selectableMaterials(obj){
-    if (obj.isCharGroup) return obj.members.reduce((acc, m) => acc.concat(selectableMaterials(m)), []);
-    return [obj.userData.parts ? obj.userData.parts.mat : obj.material];
-  }
-
   function select(obj){
-    if (selected && selected !== 'camera') selectableMaterials(selected).forEach(m => m.emissive.setHex(0x000000));
     selected = obj;
-    if (selected && selected !== 'camera') selectableMaterials(selected).forEach(m => m.emissive.setHex(0x4a1030));
     const isChar = !!selected && selected !== 'camera' && !!selected.userData.parts;
     const isProp = !!selected && selected !== 'camera' && !!selected.userData.isProp;
     const isDeletable = !!selected && selected !== 'camera';
@@ -1666,7 +1757,7 @@
     if (isRotatable){
       const y = isProp ? (selected.userData.heightOffset || 0) : selected.position.y;
       document.getElementById('objHeight').value = y;
-      document.getElementById('objHeightLabel').textContent = y.toFixed(2) + 'm';
+      document.getElementById('objHeightLabel').value = y.toFixed(2);
     }
     const rotationRow = document.getElementById('rotationRow');
     rotationRow.style.display = isRotatable ? 'flex' : 'none';
@@ -1674,7 +1765,7 @@
       let deg = Math.round(selected.rotation.y * 180 / Math.PI) % 360;
       if (deg < 0) deg += 360;
       document.getElementById('objRotation').value = deg;
-      document.getElementById('objRotationLabel').textContent = deg + '°';
+      document.getElementById('objRotationLabel').value = deg;
     }
     const propRotateXZRow = document.getElementById('propRotateXZRow');
     propRotateXZRow.style.display = isProp ? 'flex' : 'none';
@@ -1682,9 +1773,9 @@
       let degX = Math.round(selected.rotation.x * 180 / Math.PI);
       let degZ = Math.round(selected.rotation.z * 180 / Math.PI);
       document.getElementById('objRotationX').value = degX;
-      document.getElementById('objRotationXLabel').textContent = degX + '°';
+      document.getElementById('objRotationXLabel').value = degX;
       document.getElementById('objRotationZ').value = degZ;
-      document.getElementById('objRotationZLabel').textContent = degZ + '°';
+      document.getElementById('objRotationZLabel').value = degZ;
     }
     const jointsRow = document.getElementById('jointsRow');
     jointsRow.style.display = isChar ? 'flex' : 'none';
@@ -1871,7 +1962,6 @@
   document.getElementById('addWall').onclick = () => addProp('wall');
   document.getElementById('addHouse').onclick = () => addProp('house');
   document.getElementById('addTable').onclick = () => addProp('table');
-  document.getElementById('addChair').onclick = () => addProp('chair');
   document.getElementById('addSphere').onclick = () => addProp('sphere');
   document.getElementById('addCube').onclick = () => addProp('cube');
   document.getElementById('addPyramid').onclick = () => addProp('pyramid');
@@ -1895,39 +1985,27 @@
     updatePropY(selected);
     refreshPropLabels();
   };
-  document.getElementById('objRotation').addEventListener('pointerdown', pushUndo);
-  document.getElementById('objRotation').oninput = (e) => {
+  bindRangeWithNumber(document.getElementById('objRotation'), document.getElementById('objRotationLabel'), (deg) => {
     if (!selected || selected === 'camera' || selected.isCharGroup) return;
-    const deg = parseFloat(e.target.value);
     selected.rotation.y = deg * Math.PI / 180;
-    document.getElementById('objRotationLabel').textContent = deg + '°';
-  };
-  document.getElementById('objRotationX').addEventListener('pointerdown', pushUndo);
-  document.getElementById('objRotationX').oninput = (e) => {
+  });
+  bindRangeWithNumber(document.getElementById('objRotationX'), document.getElementById('objRotationXLabel'), (deg) => {
     if (!selected || selected === 'camera' || !selected.userData.isProp) return;
-    const deg = parseFloat(e.target.value);
     selected.rotation.x = deg * Math.PI / 180;
-    document.getElementById('objRotationXLabel').textContent = deg + '°';
-  };
-  document.getElementById('objRotationZ').addEventListener('pointerdown', pushUndo);
-  document.getElementById('objRotationZ').oninput = (e) => {
+  });
+  bindRangeWithNumber(document.getElementById('objRotationZ'), document.getElementById('objRotationZLabel'), (deg) => {
     if (!selected || selected === 'camera' || !selected.userData.isProp) return;
-    const deg = parseFloat(e.target.value);
     selected.rotation.z = deg * Math.PI / 180;
-    document.getElementById('objRotationZLabel').textContent = deg + '°';
-  };
-  document.getElementById('objHeight').addEventListener('pointerdown', pushUndo);
-  document.getElementById('objHeight').oninput = (e) => {
+  });
+  bindRangeWithNumber(document.getElementById('objHeight'), document.getElementById('objHeightLabel'), (val) => {
     if (!selected || selected === 'camera' || selected.isCharGroup) return;
-    const val = parseFloat(e.target.value);
     if (selected.userData.isProp){
       selected.userData.heightOffset = val;
       updatePropY(selected);
     } else {
       selected.position.y = val;
     }
-    document.getElementById('objHeightLabel').textContent = val.toFixed(2) + 'm';
-  };
+  });
   const POSE_ORDER = ['stand', 'sit', 'lie'];
   document.getElementById('poseToggle').onclick = () => {
     if (!selected || selected === 'camera') return;
@@ -1937,21 +2015,39 @@
     select(selected); // re-syncs the joint sliders, since the sit/stand presets change them
   };
 
+  // Pairs a <input type="range"> with an editable <input type="number"> so
+  // values can be dragged OR typed — dragging updates the number box, typing
+  // updates the slider, both call the same apply callback either way.
+  function bindRangeWithNumber(rangeEl, numberEl, onApply){
+    rangeEl.addEventListener('pointerdown', pushUndo);
+    numberEl.addEventListener('focus', pushUndo);
+    rangeEl.oninput = (e) => {
+      const v = parseFloat(e.target.value);
+      if (isNaN(v)) return;
+      numberEl.value = v;
+      onApply(v);
+    };
+    numberEl.oninput = (e) => {
+      const v = parseFloat(e.target.value);
+      if (isNaN(v)) return;
+      rangeEl.value = v;
+      onApply(v);
+    };
+  }
+
   function jointSliderId(name){ return 'joint' + name[0].toUpperCase() + name.slice(1); }
   function setJointSliderUI(name, deg){
     const id = jointSliderId(name);
     document.getElementById(id).value = deg;
-    document.getElementById(id + 'Label').textContent = Math.round(deg) + '°';
+    document.getElementById(id + 'Label').value = Math.round(deg);
   }
   JOINT_NAMES.forEach(name => {
     const el = document.getElementById(jointSliderId(name));
-    el.addEventListener('pointerdown', pushUndo);
-    el.oninput = (e) => {
+    const numEl = document.getElementById(jointSliderId(name) + 'Label');
+    bindRangeWithNumber(el, numEl, (deg) => {
       if (!selected || selected === 'camera' || !selected.userData.parts) return;
-      const deg = parseFloat(e.target.value);
       setJoint(selected, name, deg);
-      document.getElementById(jointSliderId(name) + 'Label').textContent = Math.round(deg) + '°';
-    };
+    });
   });
   document.getElementById('delChar').onclick = () => {
     if (!selected || selected === 'camera') return;
@@ -2326,15 +2422,7 @@
     kfs.splice(bestIdx, 1);
   }
 
-  let smoothCurves = true; // spline through all keyframes vs. per-segment ease in/out
-
   function easeInOut(e){ return e<0.5 ? 2*e*e : 1 - Math.pow(-2*e+2,2)/2; }
-
-  // Catmull-Rom through p1..p2 (p0/p3 are the neighbours, or duplicated at the ends).
-  function catmullRom(p0,p1,p2,p3,u){
-    const u2 = u*u, u3 = u2*u;
-    return 0.5 * ((2*p1) + (p2-p0)*u + (2*p0-5*p1+4*p2-p3)*u2 + (3*p1-3*p2+p3-p0)*u3);
-  }
 
   // Finds the keyframe segment containing t. a===b at/beyond the ends (held value).
   function findKfSegment(kfs, t){
@@ -2348,21 +2436,29 @@
     }
   }
 
-  // The very first and last segments of a track have no real neighbour on
-  // one side, so Catmull-Rom's phantom duplicate-point tangent there isn't
-  // zero — the move keeps a constant, non-eased speed right at the start/end
-  // of the whole animation instead of easing in/out of the held pose. Use the
-  // proper ease there and reserve the spline for interior segments, where
-  // there are real keyframes on both sides to blend through smoothly.
+  // Each keyframe carries its own "ease" amount (0 = constant speed, 1 = full
+  // ease in/out), averaged across the two ends of a segment, blending between
+  // linear and eased timing. Replaces the old global Smooth toggle.
+  // Catmull-Rom through p1..p2 (p0/p3 are the neighbours, or duplicated at the ends).
+  function catmullRom(p0,p1,p2,p3,u){
+    const u2 = u*u, u3 = u2*u;
+    return 0.5 * ((2*p1) + (p2-p0)*u + (2*p0-5*p1+4*p2-p3)*u2 + (3*p1-3*p2+p3-p0)*u3);
+  }
+
+  // The very first and last segments of a track have no real neighbour on one
+  // side, so Catmull-Rom's phantom duplicate-point tangent there isn't zero —
+  // use a plain ease there instead, and reserve the spline for interior
+  // segments (3+ keyframes), where there are real neighbours on both sides.
   function isBoundarySegment(kfs, seg){
     return seg.i === 0 || seg.i === kfs.length - 2;
   }
 
-  // Interpolates one numeric field of a keyframe list across a found segment,
-  // either as a smooth spline through the whole track or a per-segment ease.
+  // Interpolates one numeric field of a keyframe list across a found segment:
+  // a smooth spline automatically through interior keyframes, a plain ease at
+  // the ends of the track. No per-keyframe knobs to fuss with.
   function interpKfField(kfs, seg, field){
     if (seg.a === seg.b) return seg.a[field];
-    if (smoothCurves && !isBoundarySegment(kfs, seg)){
+    if (!isBoundarySegment(kfs, seg)){
       const p1 = kfs[seg.i][field], p2 = kfs[seg.i+1][field];
       const p0 = kfs[seg.i-1][field];
       const p3 = kfs[seg.i+2][field];
@@ -2374,9 +2470,10 @@
 
   // Angle fields wrap around, so a plain lerp can spin the long way round —
   // blend through the shortest signed delta instead. Kept linear-in-u (not a
-  // full spline) same as the original rotY handling this replaces.
+  // full spline) for interior segments, eased at the ends.
   function interpAngleField(kfs, seg, field){
-    const u = (smoothCurves && !isBoundarySegment(kfs, seg)) ? seg.u : easeInOut(seg.u);
+    if (seg.a === seg.b) return seg.a[field];
+    const u = !isBoundarySegment(kfs, seg) ? seg.u : easeInOut(seg.u);
     const a = seg.a[field], b = seg.b[field];
     const delta = ((b - a + Math.PI) % (Math.PI*2) + Math.PI*2) % (Math.PI*2) - Math.PI;
     return a + delta * u;
@@ -2461,7 +2558,7 @@
       track.kfs.forEach(k => {
         const mark = document.createElement('div');
         mark.className = 'kf-mark';
-        mark.title = 'Drag to move, click to delete this keyframe';
+        mark.title = 'Drag to move, click to select + jump to it, Shift+click to delete';
         mark.style.left = (timelineDuration > 0 ? (k.t / timelineDuration * 100) : 0) + '%';
 
         let dragStartX = null, didDrag = false, dragStartT = 0;
@@ -2496,7 +2593,9 @@
         mark.onclick = (e) => {
           e.stopPropagation();
           if (didDrag){ didDrag = false; return; }
-          removeNearestKeyframe(track.obj, k.t);
+          if (e.shiftKey){ removeNearestKeyframe(track.obj, k.t); return; }
+          select(track.obj);
+          setCurrentTime(k.t);
         };
         lane.appendChild(mark);
       });
@@ -2533,10 +2632,6 @@
     timelineDuration = Math.max(1, parseFloat(e.target.value) || 6);
     setCurrentTime(Math.min(currentTime, timelineDuration));
     refreshKeyframePanel();
-  };
-  document.getElementById('smoothToggle').onchange = (e) => {
-    smoothCurves = e.target.checked;
-    setCurrentTime(currentTime);
   };
   document.getElementById('tlAddKey').onclick = () => {
     if (!selected) return;
@@ -2713,7 +2808,6 @@
       },
       timelineDuration,
       cameraDriveMode,
-      smoothCurves,
       path: {
         points: pathPoints.map(p => ({...p})),
         height: pathHeight,
@@ -2803,9 +2897,6 @@
 
     cameraDriveMode = shot.cameraDriveMode || 'keyframes';
     document.querySelectorAll('.drive-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === cameraDriveMode));
-
-    smoothCurves = shot.smoothCurves !== false;
-    document.getElementById('smoothToggle').checked = smoothCurves;
 
     pathPoints = shot.path.points.map(p => ({...p}));
     pathHeight = shot.path.height;
@@ -3139,6 +3230,10 @@
     const prevPathMarkers = pathMarkers ? pathMarkers.visible : null;
     if (pathLine) pathLine.visible = false;
     if (pathMarkers) pathMarkers.visible = false;
+    const prevSelMarker = selectionMarker.visible;
+    const prevSelRing = selectionRing.visible;
+    selectionMarker.visible = false;
+    selectionRing.visible = false;
     const charStates = characters.map(root => {
       const prev = { bodyTilt: root.userData.parts.bodyTilt.visible, rig: root.userData.skeleton.rig.visible };
       root.userData.parts.bodyTilt.visible = true;
@@ -3163,6 +3258,8 @@
     grid.visible = prevGrid;
     if (pathLine) pathLine.visible = prevPathLine;
     if (pathMarkers) pathMarkers.visible = prevPathMarkers;
+    selectionMarker.visible = prevSelMarker;
+    selectionRing.visible = prevSelRing;
     characters.forEach((root, i) => {
       root.userData.parts.bodyTilt.visible = charStates[i].bodyTilt;
       root.userData.skeleton.rig.visible = charStates[i].rig;
@@ -3220,6 +3317,7 @@
 
   function render(){
     if (skeletonViewOn){ scene.updateMatrixWorld(); characters.forEach(updateSkeletonRig); }
+    updateSelectionIndicators();
     renderer.setScissorTest(false);
     renderer.setViewport(0, 0, viewport.w, viewport.h);
     if (depthViewOn){
