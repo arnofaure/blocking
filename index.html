@@ -528,6 +528,11 @@
           <span class="hud-val" id="hudPanVal">45°</span>
         </div>
         <div class="hud-row">
+          <span class="hud-label">Lateral</span>
+          <input type="range" id="hudLateral" min="-10" max="10" step="0.05" value="0">
+          <span class="hud-val" id="hudLateralVal">0.00m</span>
+        </div>
+        <div class="hud-row">
           <span class="hud-label">Lens</span>
           <button class="hud-lens-btn" id="hudLensPrev">‹</button>
           <span class="hud-val" id="hudLensVal">35mm</span>
@@ -589,7 +594,7 @@
       <span class="label-sm">Units</span>
       <select id="sizeUnit" style="flex:1">
         <option value="m">Meters</option>
-        <option value="ft">Feet &amp; inches</option>
+        <option value="ft">Feet (decimal)</option>
         <option value="in">Inches</option>
       </select>
     </div>
@@ -691,18 +696,18 @@
     <div class="row align" id="propScaleRow" style="margin-top:8px; display:none; flex-direction:column; align-items:stretch; gap:6px">
       <div class="row align">
         <span class="label-sm">Width</span>
-        <input type="range" id="propWidth" min="0.4" max="3" step="0.05" value="1">
-        <span class="hint" style="margin:0; width:52px; text-align:right" id="propWidthLabel">1.0m</span>
+        <input type="range" id="propWidth" min="0.05" max="50" step="0.05" value="1">
+        <input type="number" class="val-input" id="propWidthLabel" min="0.01" step="0.05" value="1.00">
       </div>
       <div class="row align">
         <span class="label-sm">Depth</span>
-        <input type="range" id="propDepth" min="0.4" max="3" step="0.05" value="1">
-        <span class="hint" style="margin:0; width:52px; text-align:right" id="propDepthLabel">1.0m</span>
+        <input type="range" id="propDepth" min="0.05" max="50" step="0.05" value="1">
+        <input type="number" class="val-input" id="propDepthLabel" min="0.01" step="0.05" value="1.00">
       </div>
       <div class="row align">
         <span class="label-sm">Height</span>
-        <input type="range" id="propHeight" min="0.4" max="3" step="0.05" value="1">
-        <span class="hint" style="margin:0; width:52px; text-align:right" id="propHeightLabel">1.0m</span>
+        <input type="range" id="propHeight" min="0.05" max="50" step="0.05" value="1">
+        <input type="number" class="val-input" id="propHeightLabel" min="0.01" step="0.05" value="1.00">
       </div>
     </div>
   </section>
@@ -768,19 +773,24 @@
     <div class="row align" style="margin-bottom:6px">
       <span class="label-sm">Height</span>
       <input type="range" id="camHeight" min="0.2" max="8" step="0.05" value="1">
-      <span class="hint" style="margin:0; width:34px; text-align:right" id="camHeightLabel">1.0m</span>
+      <input type="number" class="val-input" id="camHeightLabel" min="0.2" step="0.05" value="1.0">
     </div>
     <div class="row align" style="margin-bottom:6px">
       <span class="label-sm">Tilt</span>
       <input type="range" id="camTilt" min="-89" max="89" step="1" value="34">
-      <span class="hint" style="margin:0; width:34px; text-align:right" id="camTiltLabel">34°</span>
+      <input type="number" class="val-input" id="camTiltLabel" min="-89" max="89" step="1" value="34">
     </div>
-    <div class="row align">
+    <div class="row align" style="margin-bottom:6px">
       <span class="label-sm">Pan</span>
       <input type="range" id="camPan" min="0" max="360" step="1" value="45">
-      <span class="hint" style="margin:0; width:34px; text-align:right" id="camPanLabel">45°</span>
+      <input type="number" class="val-input" id="camPanLabel" min="0" max="360" step="1" value="45">
     </div>
-    <div class="hint">Height = height of the point the camera looks at. Tilt = angle above the horizon (negative = camera below, looking up — contre-plongée). Pan = angle around the subject.</div>
+    <div class="row align">
+      <span class="label-sm">Lateral</span>
+      <input type="range" id="camLateral" min="-10" max="10" step="0.05" value="0">
+      <input type="number" class="val-input" id="camLateralLabel" step="0.05" value="0.00">
+    </div>
+    <div class="hint">Height = height of the point the camera looks at. Tilt = angle above the horizon (negative = camera below, looking up — contre-plongée). Pan = angle around the subject. Lateral = truck sideways without changing angle or distance.</div>
   </section>
 
   <section>
@@ -1225,6 +1235,50 @@
     selectionRing.scale.set(s, s, 1);
   }
 
+  // ---------- Lock icon: floats above any locked character/object ----------
+  // A billboarded sprite (always faces the camera) drawn from a small canvas,
+  // so it reads as a crisp icon rather than low-poly 3D geometry. Hidden from
+  // every export (JPEG frame + depth map) since it's a UI affordance, not
+  // scene content.
+  function makeLockIconTexture(){
+    const size = 64;
+    const c = document.createElement('canvas');
+    c.width = size; c.height = size;
+    const ctx = c.getContext('2d');
+    ctx.font = (size * 0.75) + 'px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🔒', size / 2, size / 2 + size * 0.05);
+    return new THREE.CanvasTexture(c);
+  }
+  const lockIconTexture = makeLockIconTexture();
+  const lockIconSprites = new Map(); // object -> Sprite
+
+  function updateLockIcons(){
+    const allObjs = characters.concat(objects);
+    for (const [obj, spr] of lockIconSprites){
+      if (!allObjs.includes(obj) || !obj.userData.locked){
+        scene.remove(spr);
+        spr.material.dispose();
+        lockIconSprites.delete(obj);
+      }
+    }
+    allObjs.forEach(obj => {
+      if (!obj.userData.locked) return;
+      let spr = lockIconSprites.get(obj);
+      if (!spr){
+        spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: lockIconTexture, transparent: true }));
+        spr.scale.set(0.28, 0.28, 1);
+        scene.add(spr);
+        lockIconSprites.set(obj, spr);
+      }
+      selTmpBox.setFromObject(obj);
+      const cx = (selTmpBox.min.x + selTmpBox.max.x) / 2;
+      const cz = (selTmpBox.min.z + selTmpBox.max.z) / 2;
+      spr.position.set(cx, selTmpBox.max.y + 0.4, cz);
+    });
+  }
+
   // camera position/facing marker, mainly useful in the top-down view
   const camMarkerGeo = new THREE.ConeGeometry(0.35, 0.9, 3);
   camMarkerGeo.rotateX(-Math.PI/2); // apex now points along local -Z
@@ -1239,6 +1293,8 @@
   // ---------- Orbit camera (custom, minimal) ----------
   const target = new THREE.Vector3(0, 1, 0);
   let radius = 8, theta = Math.PI/4, phi = Math.PI/3.2;
+  let camLateral = 0; // sideways truck offset (meters), relative to the current facing
+  let camLookX = 0, camLookZ = 0; // the actual look-at point once the lateral offset is applied
   function clampPhi(p){ return Math.max(0.02, Math.min(Math.PI - 0.02, p)); }
 
   const camHeightInput = document.getElementById('camHeight');
@@ -1254,18 +1310,22 @@
   const hudTiltVal = document.getElementById('hudTiltVal');
   const hudPan = document.getElementById('hudPan');
   const hudPanVal = document.getElementById('hudPanVal');
+  const hudLateral = document.getElementById('hudLateral');
+  const hudLateralVal = document.getElementById('hudLateralVal');
   const hudLensVal = document.getElementById('hudLensVal');
 
   function syncCamUI(){
     camHeightInput.value = target.y;
-    camHeightLabel.textContent = target.y.toFixed(1) + 'm';
+    camHeightLabel.value = target.y.toFixed(2);
     const elevDeg = Math.round(90 - phi * 180 / Math.PI);
     camTiltInput.value = elevDeg;
-    camTiltLabel.textContent = elevDeg + '°';
+    camTiltLabel.value = elevDeg;
     let panDeg = Math.round(theta * 180 / Math.PI) % 360;
     if (panDeg < 0) panDeg += 360;
     camPanInput.value = panDeg;
-    camPanLabel.textContent = panDeg + '°';
+    camPanLabel.value = panDeg;
+    document.getElementById('camLateral').value = camLateral;
+    document.getElementById('camLateralLabel').value = camLateral.toFixed(2);
 
     hudHeight.value = target.y;
     hudHeightVal.textContent = target.y.toFixed(1) + 'm';
@@ -1273,12 +1333,14 @@
     hudTiltVal.textContent = elevDeg + '°';
     hudPan.value = panDeg;
     hudPanVal.textContent = panDeg + '°';
+    hudLateral.value = camLateral;
+    hudLateralVal.textContent = camLateral.toFixed(2) + 'm';
     hudLensVal.textContent = Math.round(currentLensMM()) + 'mm';
   }
 
   function updateCamMarker(){
     camMarker.position.set(camera.position.x, 0.05, camera.position.z);
-    camMarker.lookAt(target.x, 0.05, target.z);
+    camMarker.lookAt(camLookX, 0.05, camLookZ);
   }
 
   // "Handheld" is a shot note only (shown as a label on the camera view) — it is
@@ -1289,30 +1351,39 @@
 
   function updateCameraFromSpherical(){
     phi = clampPhi(phi);
+    // "Lateral" trucks the whole rig (camera + look-at point) sideways along
+    // the camera's current right vector, derived from theta — so it slides
+    // the framing left/right without changing the orbit distance/angle.
+    const rightX = Math.cos(theta), rightZ = -Math.sin(theta);
+    camLookX = target.x + rightX * camLateral;
+    camLookZ = target.z + rightZ * camLateral;
     camera.position.set(
-      target.x + radius * Math.sin(phi) * Math.sin(theta),
+      camLookX + radius * Math.sin(phi) * Math.sin(theta),
       target.y + radius * Math.cos(phi),
-      target.z + radius * Math.sin(phi) * Math.cos(theta)
+      camLookZ + radius * Math.sin(phi) * Math.cos(theta)
     );
-    camera.lookAt(target);
+    camera.lookAt(camLookX, target.y, camLookZ);
     syncCamUI();
     updateCamMarker();
   }
   updateCameraFromSpherical();
 
-  camHeightInput.oninput = (e) => {
-    target.y = parseFloat(e.target.value);
+  bindRangeWithNumber(camHeightInput, camHeightLabel, (v) => {
+    target.y = v;
     updateCameraFromSpherical();
-  };
-  camTiltInput.oninput = (e) => {
-    const elevDeg = parseFloat(e.target.value);
+  });
+  bindRangeWithNumber(camTiltInput, camTiltLabel, (elevDeg) => {
     phi = (90 - elevDeg) * Math.PI / 180;
     updateCameraFromSpherical();
-  };
-  camPanInput.oninput = (e) => {
-    theta = parseFloat(e.target.value) * Math.PI / 180;
+  });
+  bindRangeWithNumber(camPanInput, camPanLabel, (panDeg) => {
+    theta = panDeg * Math.PI / 180;
     updateCameraFromSpherical();
-  };
+  });
+  bindRangeWithNumber(document.getElementById('camLateral'), document.getElementById('camLateralLabel'), (v) => {
+    camLateral = v;
+    updateCameraFromSpherical();
+  });
 
   hudHeight.oninput = (e) => {
     target.y = parseFloat(e.target.value);
@@ -1325,6 +1396,10 @@
   };
   hudPan.oninput = (e) => {
     theta = parseFloat(e.target.value) * Math.PI / 180;
+    updateCameraFromSpherical();
+  };
+  hudLateral.oninput = (e) => {
+    camLateral = parseFloat(e.target.value);
     updateCameraFromSpherical();
   };
   document.getElementById('camHudClose').onclick = () => {
@@ -1666,23 +1741,22 @@
   }
 
   let sizeUnit = 'm'; // 'm' | 'ft' | 'in'
-  function formatLength(m){
-    if (sizeUnit === 'ft'){
-      const totalIn = m * 39.3701;
-      let ft = Math.floor(totalIn / 12);
-      let inch = Math.round(totalIn - ft * 12);
-      if (inch === 12){ ft += 1; inch = 0; }
-      return ft + "'" + inch + '"';
-    }
-    if (sizeUnit === 'in') return (m * 39.3701).toFixed(1) + '"';
-    return m.toFixed(2) + 'm';
+  function toUnitValue(m){
+    if (sizeUnit === 'ft') return m * 3.28084;
+    if (sizeUnit === 'in') return m * 39.3701;
+    return m;
+  }
+  function fromUnitValue(v){
+    if (sizeUnit === 'ft') return v / 3.28084;
+    if (sizeUnit === 'in') return v / 39.3701;
+    return v;
   }
   function refreshPropLabels(){
     if (!selected || selected === 'camera' || !selected.userData.isProp) return;
     const size = PROP_SIZES[selected.userData.type];
-    document.getElementById('propWidthLabel').textContent = formatLength(size.w * selected.scale.x);
-    document.getElementById('propDepthLabel').textContent = formatLength(size.d * selected.scale.z);
-    document.getElementById('propHeightLabel').textContent = formatLength(size.h * selected.scale.y);
+    document.getElementById('propWidthLabel').value = toUnitValue(size.w * selected.scale.x).toFixed(2);
+    document.getElementById('propDepthLabel').value = toUnitValue(size.d * selected.scale.z).toFixed(2);
+    document.getElementById('propHeightLabel').value = toUnitValue(size.h * selected.scale.y).toFixed(2);
   }
   document.getElementById('sizeUnit').onchange = (e) => {
     sizeUnit = e.target.value;
@@ -1965,25 +2039,56 @@
   document.getElementById('addSphere').onclick = () => addProp('sphere');
   document.getElementById('addCube').onclick = () => addProp('cube');
   document.getElementById('addPyramid').onclick = () => addProp('pyramid');
+  // The range gives coarse control over a generous-but-finite span; the
+  // number field takes any value typed (no upper bound) — sizes are
+  // effectively unlimited, just via the keyboard past the slider's range.
   document.getElementById('propWidth').addEventListener('pointerdown', pushUndo);
+  document.getElementById('propWidthLabel').addEventListener('focus', pushUndo);
   document.getElementById('propWidth').oninput = (e) => {
     if (!selected || selected === 'camera' || !selected.userData.isProp) return;
     selected.scale.x = parseFloat(e.target.value);
     refreshPropLabels();
   };
+  document.getElementById('propWidthLabel').oninput = (e) => {
+    if (!selected || selected === 'camera' || !selected.userData.isProp) return;
+    const v = parseFloat(e.target.value);
+    if (isNaN(v) || v <= 0) return;
+    const size = PROP_SIZES[selected.userData.type];
+    selected.scale.x = fromUnitValue(v) / size.w;
+    document.getElementById('propWidth').value = selected.scale.x;
+  };
   document.getElementById('propDepth').addEventListener('pointerdown', pushUndo);
+  document.getElementById('propDepthLabel').addEventListener('focus', pushUndo);
   document.getElementById('propDepth').oninput = (e) => {
     if (!selected || selected === 'camera' || !selected.userData.isProp) return;
     selected.scale.z = parseFloat(e.target.value);
     refreshPropLabels();
   };
+  document.getElementById('propDepthLabel').oninput = (e) => {
+    if (!selected || selected === 'camera' || !selected.userData.isProp) return;
+    const v = parseFloat(e.target.value);
+    if (isNaN(v) || v <= 0) return;
+    const size = PROP_SIZES[selected.userData.type];
+    selected.scale.z = fromUnitValue(v) / size.d;
+    document.getElementById('propDepth').value = selected.scale.z;
+  };
   document.getElementById('propHeight').addEventListener('pointerdown', pushUndo);
+  document.getElementById('propHeightLabel').addEventListener('focus', pushUndo);
   document.getElementById('propHeight').oninput = (e) => {
     if (!selected || selected === 'camera' || !selected.userData.isProp) return;
     const s = parseFloat(e.target.value);
     selected.scale.y = s;
     updatePropY(selected);
     refreshPropLabels();
+  };
+  document.getElementById('propHeightLabel').oninput = (e) => {
+    if (!selected || selected === 'camera' || !selected.userData.isProp) return;
+    const v = parseFloat(e.target.value);
+    if (isNaN(v) || v <= 0) return;
+    const size = PROP_SIZES[selected.userData.type];
+    selected.scale.y = fromUnitValue(v) / size.h;
+    document.getElementById('propHeight').value = selected.scale.y;
+    updatePropY(selected);
   };
   bindRangeWithNumber(document.getElementById('objRotation'), document.getElementById('objRotationLabel'), (deg) => {
     if (!selected || selected === 'camera' || selected.isCharGroup) return;
@@ -2802,7 +2907,7 @@
       background: currentBg,
       frame: { aspect: frameAspect, label: frameLabelText },
       camera: {
-        radius, theta, phi, fov: camera.fov,
+        radius, theta, phi, fov: camera.fov, lateral: camLateral,
         target: { x: target.x, y: target.y, z: target.z },
         keyframes: cameraKeyframes.map(k => ({...k}))
       },
@@ -2881,6 +2986,7 @@
     radius = shot.camera.radius;
     theta = shot.camera.theta;
     phi = shot.camera.phi;
+    camLateral = shot.camera.lateral || 0;
     target.set(shot.camera.target.x, shot.camera.target.y, shot.camera.target.z);
     cameraKeyframes = shot.camera.keyframes.map(k => ({...k}));
     if (shot.camera.fov){
@@ -3082,10 +3188,12 @@
   document.getElementById('mvOrbitL').onclick = () => moveOrbit(-1);
   document.getElementById('mvOrbitR').onclick = () => moveOrbit(1);
   document.getElementById('mvReset').onclick = () => {
+    const startLateral = camLateral;
     tween(900, e => {
       radius = radius + (8-radius)*e;
       theta = theta + (Math.PI/4-theta)*e;
       phi = phi + (Math.PI/3.2-phi)*e;
+      camLateral = startLateral + (0-startLateral)*e;
       target.lerp(new THREE.Vector3(0,1,0), e);
       updateCameraFromSpherical();
     });
@@ -3177,10 +3285,26 @@
     }, mime, quality);
   }
 
+  // UI-only overlays (selection marker/ring, lock icons) never belong in an
+  // exported image — hide them for the one render, then restore.
+  function withoutHelperOverlays(fn){
+    const prevMarker = selectionMarker.visible;
+    const prevRing = selectionRing.visible;
+    selectionMarker.visible = false;
+    selectionRing.visible = false;
+    lockIconSprites.forEach(spr => { spr.visible = false; });
+    fn();
+    selectionMarker.visible = prevMarker;
+    selectionRing.visible = prevRing;
+    lockIconSprites.forEach(spr => { spr.visible = true; });
+  }
+
   function exportFrame(){
-    renderer.setScissorTest(false);
-    renderer.setViewport(0, 0, viewport.w, viewport.h);
-    renderer.render(scene, camera);
+    withoutHelperOverlays(() => {
+      renderer.setScissorTest(false);
+      renderer.setViewport(0, 0, viewport.w, viewport.h);
+      renderer.render(scene, camera);
+    });
     downloadCanvas(cropToFrame(), 'blocking-frame-' + currentTime.toFixed(1) + 's.jpg', 'image/jpeg', 0.92);
   }
 
@@ -3234,6 +3358,7 @@
     const prevSelRing = selectionRing.visible;
     selectionMarker.visible = false;
     selectionRing.visible = false;
+    lockIconSprites.forEach(spr => { spr.visible = false; });
     const charStates = characters.map(root => {
       const prev = { bodyTilt: root.userData.parts.bodyTilt.visible, rig: root.userData.skeleton.rig.visible };
       root.userData.parts.bodyTilt.visible = true;
@@ -3260,6 +3385,7 @@
     if (pathMarkers) pathMarkers.visible = prevPathMarkers;
     selectionMarker.visible = prevSelMarker;
     selectionRing.visible = prevSelRing;
+    lockIconSprites.forEach(spr => { spr.visible = true; });
     characters.forEach((root, i) => {
       root.userData.parts.bodyTilt.visible = charStates[i].bodyTilt;
       root.userData.skeleton.rig.visible = charStates[i].rig;
@@ -3318,6 +3444,7 @@
   function render(){
     if (skeletonViewOn){ scene.updateMatrixWorld(); characters.forEach(updateSkeletonRig); }
     updateSelectionIndicators();
+    updateLockIcons();
     renderer.setScissorTest(false);
     renderer.setViewport(0, 0, viewport.w, viewport.h);
     if (depthViewOn){
