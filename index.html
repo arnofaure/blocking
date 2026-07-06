@@ -405,7 +405,11 @@
     padding:0 10px; font-size:11.5px; color:var(--text-dim); cursor:pointer;
     border-bottom:0.5px solid var(--panel-border); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   }
-  .kf-row-label.active { color: var(--select); box-shadow: inset 0 0 0 1000px rgba(236,72,153,0.16); }
+  .kf-row-label.active {
+    color: var(--select); font-weight:700;
+    background: rgba(236,72,153,0.4);
+    box-shadow: inset 3px 0 0 var(--select);
+  }
   #kfLanesWrap { flex:1; position:relative; overflow-y:auto; overflow-x:hidden; }
   #kfRuler {
     height:22px; flex-shrink:0; position:relative; cursor:pointer;
@@ -418,7 +422,10 @@
   .kf-lane {
     height:28px; position:relative; border-bottom:0.5px solid var(--panel-border); cursor:pointer;
   }
-  .kf-lane.active { box-shadow: inset 0 0 0 1000px rgba(236,72,153,0.14); }
+  .kf-lane.active {
+    background: rgba(236,72,153,0.35);
+    box-shadow: inset 0 1px 0 var(--select), inset 0 -1px 0 var(--select);
+  }
   .kf-mark {
     position:absolute; top:50%; width:9px; height:9px; background: var(--text);
     transform:translate(-50%,-50%) rotate(45deg); border-radius:2px; cursor:ew-resize; z-index:2; touch-action:none;
@@ -459,6 +466,10 @@
         <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M3 12a9 9 0 109-9"/><path d="M3 4v8h8"/></svg>
         Reset camera
         <span class="tb-shortcut">R</span>
+      </button>
+      <button class="tb-btn" id="menuResetAll" title="Reset the whole scene back to defaults">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z"/></svg>
+        Reset all
       </button>
       <div class="tb-sep-h"></div>
       <a class="tb-btn" href="http://storyboard.arnofaure.com/" target="_blank" rel="noopener noreferrer" title="Open the Storyboard app">
@@ -575,6 +586,7 @@
 
 <div id="panel">
   <button id="collapseAllBtn">Collapse all sections</button>
+  <button class="danger" id="resetAllBtnTop" style="margin-bottom:10px">Reset all (default scene)</button>
   <section>
     <h2>Characters / Objects</h2>
     <button class="primary" id="addChar">+ Add character</button>
@@ -723,6 +735,17 @@
     <label class="hint" style="display:flex; align-items:center; gap:6px; margin-top:10px">
       <input type="checkbox" id="gridToggle" checked> Show floor grid
     </label>
+    <div class="row align" style="margin-top:10px; margin-bottom:6px">
+      <span class="label-sm">Sun azimuth</span>
+      <input type="range" id="sunAzimuth" min="0" max="360" step="1" value="40">
+      <input type="number" class="val-input" id="sunAzimuthLabel" min="0" max="360" step="1" value="40">
+    </div>
+    <div class="row align">
+      <span class="label-sm">Sun height</span>
+      <input type="range" id="sunElevation" min="5" max="90" step="1" value="52">
+      <input type="number" class="val-input" id="sunElevationLabel" min="5" max="90" step="1" value="52">
+    </div>
+    <div class="hint">Azimuth = direction the light comes from. Height = angle above the horizon (low = long shadows, high = overhead).</div>
   </section>
 
   <section>
@@ -805,8 +828,13 @@
     </div>
     <button id="mvReset">Reset camera</button>
     <label class="hint" style="display:flex; align-items:center; gap:6px; margin-top:10px">
-      <input type="checkbox" id="handheldEnable"> Handheld camera (note only, not simulated)
-    </label>
+      <input type="checkbox" id="handheldEnable"> Handheld camera</label>
+    <div class="row align" id="handheldIntensityRow" style="margin-top:6px; display:none">
+      <span class="label-sm">Intensity</span>
+      <input type="range" id="handheldIntensity" min="0" max="1" step="0.02" value="0.4">
+      <input type="number" class="val-input" id="handheldIntensityLabel" min="0" max="1" step="0.02" value="0.40">
+    </div>
+    <div class="hint" id="handheldHint" style="display:none">Procedural shake (position + rotation drift), driven by the timeline so it's identical every time you scrub or export — not random per real-world second.</div>
   </section>
 
   <section>
@@ -891,6 +919,7 @@
     <div class="sc-row"><span>Reset camera</span><span class="sc-key">R</span></div>
     <div class="sc-row"><span>Show / hide floor grid</span><span class="sc-key">G</span></div>
     <div class="sc-row"><span>Lock / unlock selected item</span><span class="sc-key">L</span></div>
+    <div class="sc-row"><span>Add keyframe for the selected item</span><span class="sc-key">K</span></div>
     <div class="sc-row"><span>Close this or any other dialog</span><span class="sc-key">Esc</span></div>
 
     <h3>Main &amp; top views</h3>
@@ -1164,6 +1193,15 @@
     frameGuideEls.forEach(el => el.style.display = frameGuidesOn ? '' : 'none');
   };
 
+  bindRangeWithNumber(document.getElementById('sunAzimuth'), document.getElementById('sunAzimuthLabel'), (v) => {
+    sunAzimuth = v;
+    updateSunPosition();
+  });
+  bindRangeWithNumber(document.getElementById('sunElevation'), document.getElementById('sunElevationLabel'), (v) => {
+    sunElevation = v;
+    updateSunPosition();
+  });
+
   // lights
   const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 0.9);
   scene.add(hemi);
@@ -1174,6 +1212,20 @@
   dir.shadow.camera.left = -10; dir.shadow.camera.right = 10;
   dir.shadow.camera.top = 10; dir.shadow.camera.bottom = -10;
   scene.add(dir);
+
+  // "Sun" direction — azimuth/elevation control over the directional light,
+  // matching its default position (5,10,6) at 0°/50° of rotation.
+  let sunAzimuth = 40, sunElevation = 52;
+  function updateSunPosition(){
+    const az = sunAzimuth * Math.PI / 180, el = sunElevation * Math.PI / 180;
+    const R = 15;
+    dir.position.set(
+      Math.sin(az) * Math.cos(el) * R,
+      Math.sin(el) * R,
+      Math.cos(az) * Math.cos(el) * R
+    );
+  }
+  updateSunPosition();
 
   // floor — oversized so it reads as an infinite ground plane, mid-grey like a classic 3D viewport
   const floorGeo = new THREE.PlaneGeometry(1000, 1000);
@@ -1240,15 +1292,50 @@
   // so it reads as a crisp icon rather than low-poly 3D geometry. Hidden from
   // every export (JPEG frame + depth map) since it's a UI affordance, not
   // scene content.
+  // Hand-drawn with canvas primitives rather than the 🔒 emoji glyph — emoji
+  // rendering through a canvas font depends on the OS/browser having a color
+  // emoji font available, and silently produces a blank or "tofu" box on
+  // systems that don't, which is exactly what made the old icon unreadable.
   function makeLockIconTexture(){
-    const size = 64;
+    const size = 128;
     const c = document.createElement('canvas');
     c.width = size; c.height = size;
     const ctx = c.getContext('2d');
-    ctx.font = (size * 0.75) + 'px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('🔒', size / 2, size / 2 + size * 0.05);
+    const cx = size / 2;
+    const bodyW = size * 0.56, bodyH = size * 0.42;
+    const bodyX = cx - bodyW / 2, bodyY = size * 0.46;
+    const shackleR = size * 0.16;
+
+    ctx.lineCap = 'round';
+    ctx.lineWidth = size * 0.1;
+    ctx.strokeStyle = '#1a1a1a';
+    ctx.beginPath();
+    ctx.arc(cx, bodyY - shackleR * 0.15, shackleR, Math.PI, 0, false);
+    ctx.moveTo(cx - shackleR, bodyY - shackleR * 0.15);
+    ctx.lineTo(cx - shackleR, bodyY + size * 0.04);
+    ctx.moveTo(cx + shackleR, bodyY - shackleR * 0.15);
+    ctx.lineTo(cx + shackleR, bodyY + size * 0.04);
+    ctx.stroke();
+
+    const r = size * 0.07;
+    ctx.beginPath();
+    ctx.moveTo(bodyX + r, bodyY);
+    ctx.arcTo(bodyX + bodyW, bodyY, bodyX + bodyW, bodyY + bodyH, r);
+    ctx.arcTo(bodyX + bodyW, bodyY + bodyH, bodyX, bodyY + bodyH, r);
+    ctx.arcTo(bodyX, bodyY + bodyH, bodyX, bodyY, r);
+    ctx.arcTo(bodyX, bodyY, bodyX + bodyW, bodyY, r);
+    ctx.closePath();
+    ctx.fillStyle = '#ffcc00';
+    ctx.fill();
+    ctx.lineWidth = size * 0.035;
+    ctx.stroke();
+
+    ctx.fillStyle = '#1a1a1a';
+    ctx.beginPath();
+    ctx.arc(cx, bodyY + bodyH * 0.42, size * 0.055, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillRect(cx - size * 0.022, bodyY + bodyH * 0.42, size * 0.044, bodyH * 0.32);
+
     return new THREE.CanvasTexture(c);
   }
   const lockIconTexture = makeLockIconTexture();
@@ -1268,7 +1355,7 @@
       let spr = lockIconSprites.get(obj);
       if (!spr){
         spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: lockIconTexture, transparent: true }));
-        spr.scale.set(0.28, 0.28, 1);
+        spr.scale.set(0.4, 0.4, 1);
         scene.add(spr);
         lockIconSprites.set(obj, spr);
       }
@@ -1346,8 +1433,16 @@
   // "Handheld" is a shot note only (shown as a label on the camera view) — it is
   // not simulated, so it never affects the actual render or the exported video.
   document.getElementById('handheldEnable').onchange = (e) => {
-    document.getElementById('handheldLabel').style.display = e.target.checked ? 'block' : 'none';
+    handheldOn = e.target.checked;
+    document.getElementById('handheldLabel').style.display = handheldOn ? 'block' : 'none';
+    document.getElementById('handheldIntensityRow').style.display = handheldOn ? 'flex' : 'none';
+    document.getElementById('handheldHint').style.display = handheldOn ? 'block' : 'none';
   };
+  bindRangeWithNumber(
+    document.getElementById('handheldIntensity'),
+    document.getElementById('handheldIntensityLabel'),
+    (v) => { handheldIntensity = v; }
+  );
 
   function updateCameraFromSpherical(){
     phi = clampPhi(phi);
@@ -1363,9 +1458,78 @@
       camLookZ + radius * Math.sin(phi) * Math.cos(theta)
     );
     camera.lookAt(camLookX, target.y, camLookZ);
+    // Cache the "clean" (unshaken) camera pose so the handheld effect always
+    // perturbs from the true position instead of drifting frame to frame.
+    baseCamPos.copy(camera.position);
+    baseCamQuat.copy(camera.quaternion);
     syncCamUI();
     updateCamMarker();
   }
+
+  // ---------- Handheld camera shake ----------
+  // Coherent (Perlin-style) 1D value noise: random values on an integer
+  // lattice, smoothed with a quintic curve between them — continuous and
+  // non-repeating in practice, unlike a plain sum of sine waves.
+  function makeRandom(seed){
+    let a = seed >>> 0;
+    return function(){
+      a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function makeNoise1D(seed){
+    const rand = makeRandom(seed);
+    const lattice = new Map();
+    function valueAt(i){
+      if (!lattice.has(i)) lattice.set(i, rand() * 2 - 1);
+      return lattice.get(i);
+    }
+    return function(t){
+      const i = Math.floor(t), f = t - i;
+      const u = f*f*f*(f*(f*6 - 15) + 10); // quintic fade
+      return valueAt(i) + (valueAt(i+1) - valueAt(i)) * u;
+    };
+  }
+  const baseCamPos = new THREE.Vector3();
+  const baseCamQuat = new THREE.Quaternion();
+  const handheldNoise = {
+    px: makeNoise1D(1), py: makeNoise1D(2), pz: makeNoise1D(3),
+    yaw: makeNoise1D(4), pitch: makeNoise1D(5), roll: makeNoise1D(6)
+  };
+  let handheldOn = false;
+  let handheldIntensity = 0.4;
+
+  // Layers a slow "sway" (like breathing) with a faster "micro-jitter" (like
+  // muscle tremor) per axis, driven by the timeline's own clock so the shake
+  // is identical every time you scrub to the same moment or re-export.
+  function applyHandheldShake(t){
+    if (!handheldOn){
+      camera.position.copy(baseCamPos);
+      camera.quaternion.copy(baseCamQuat);
+      return;
+    }
+    const amp = handheldIntensity;
+    const posAmp = 0.05 * amp, rotAmp = 0.018 * amp;
+    const fSlow = 0.7, fFast = 2.9;
+    function layered(fn, offset){
+      return fn(t * fSlow + offset) * 0.6 + fn(t * fFast + offset + 50) * 0.4;
+    }
+    const px = layered(handheldNoise.px, 0) * posAmp;
+    const py = layered(handheldNoise.py, 10) * posAmp;
+    const pz = layered(handheldNoise.pz, 20) * posAmp;
+    const yaw = layered(handheldNoise.yaw, 30) * rotAmp;
+    const pitch = layered(handheldNoise.pitch, 40) * rotAmp;
+    const roll = layered(handheldNoise.roll, 60) * rotAmp * 0.6;
+
+    camera.position.copy(baseCamPos).add(new THREE.Vector3(px, py, pz));
+    camera.quaternion.copy(baseCamQuat);
+    camera.rotateX(pitch);
+    camera.rotateY(yaw);
+    camera.rotateZ(roll);
+  }
+
   updateCameraFromSpherical();
 
   bindRangeWithNumber(camHeightInput, camHeightLabel, (v) => {
@@ -2541,47 +2705,60 @@
     }
   }
 
-  // Each keyframe carries its own "ease" amount (0 = constant speed, 1 = full
-  // ease in/out), averaged across the two ends of a segment, blending between
-  // linear and eased timing. Replaces the old global Smooth toggle.
-  // Catmull-Rom through p1..p2 (p0/p3 are the neighbours, or duplicated at the ends).
-  function catmullRom(p0,p1,p2,p3,u){
+  // Cubic Hermite basis functions (u in [0,1]).
+  function hermiteBasis(u){
     const u2 = u*u, u3 = u2*u;
-    return 0.5 * ((2*p1) + (p2-p0)*u + (2*p0-5*p1+4*p2-p3)*u2 + (3*p1-3*p2+p3-p0)*u3);
+    return {
+      h00: 2*u3 - 3*u2 + 1,
+      h10: u3 - 2*u2 + u,
+      h01: -2*u3 + 3*u2,
+      h11: u3 - u2
+    };
   }
 
-  // The very first and last segments of a track have no real neighbour on one
-  // side, so Catmull-Rom's phantom duplicate-point tangent there isn't zero —
-  // use a plain ease there instead, and reserve the spline for interior
-  // segments (3+ keyframes), where there are real neighbours on both sides.
-  function isBoundarySegment(kfs, seg){
-    return seg.i === 0 || seg.i === kfs.length - 2;
+  // The tangent at any interior keyframe is the average slope through its
+  // neighbours (a central difference) — this is what makes the curve pass
+  // through with continuous velocity, not decelerate-then-reaccelerate. The
+  // true first/last keyframe of the whole track gets a zero tangent instead,
+  // so the move still eases in/out of rest at the very start and end. Works
+  // for any keyframe count, including exactly 3 (the case a 4-point Catmull-
+  // Rom segment can't handle, since it has no "outer" neighbour to borrow).
+  function hermiteTangent(kfs, i, field){
+    if (i === 0 || i === kfs.length - 1) return 0;
+    return (kfs[i+1][field] - kfs[i-1][field]) / 2;
   }
 
-  // Interpolates one numeric field of a keyframe list across a found segment:
-  // a smooth spline automatically through interior keyframes, a plain ease at
-  // the ends of the track. No per-keyframe knobs to fuss with.
+  // Interpolates one numeric field of a keyframe list across a found segment.
   function interpKfField(kfs, seg, field){
     if (seg.a === seg.b) return seg.a[field];
-    if (!isBoundarySegment(kfs, seg)){
-      const p1 = kfs[seg.i][field], p2 = kfs[seg.i+1][field];
-      const p0 = kfs[seg.i-1][field];
-      const p3 = kfs[seg.i+2][field];
-      return catmullRom(p0, p1, p2, p3, seg.u);
-    }
-    const e = easeInOut(seg.u);
-    return seg.a[field] + (seg.b[field] - seg.a[field]) * e;
+    const p1 = seg.a[field], p2 = seg.b[field];
+    const m1 = hermiteTangent(kfs, seg.i, field);
+    const m2 = hermiteTangent(kfs, seg.i + 1, field);
+    const { h00, h10, h01, h11 } = hermiteBasis(seg.u);
+    return h00*p1 + h10*m1 + h01*p2 + h11*m2;
   }
 
-  // Angle fields wrap around, so a plain lerp can spin the long way round —
-  // blend through the shortest signed delta instead. Kept linear-in-u (not a
-  // full spline) for interior segments, eased at the ends.
+  function angleDelta(a, b){
+    return ((b - a + Math.PI) % (Math.PI*2) + Math.PI*2) % (Math.PI*2) - Math.PI;
+  }
+
+  // Same Hermite scheme as interpKfField, but every difference (tangents and
+  // the segment's own start-to-end delta) is taken as the shortest signed
+  // angle instead of a raw subtraction, so a track can't spin the long way
+  // round just because two keyframes happen to be stored on opposite sides
+  // of the +-180° wrap.
+  function hermiteAngleTangent(kfs, i, field){
+    if (i === 0 || i === kfs.length - 1) return 0;
+    return angleDelta(kfs[i-1][field], kfs[i+1][field]) / 2;
+  }
   function interpAngleField(kfs, seg, field){
     if (seg.a === seg.b) return seg.a[field];
-    const u = !isBoundarySegment(kfs, seg) ? seg.u : easeInOut(seg.u);
-    const a = seg.a[field], b = seg.b[field];
-    const delta = ((b - a + Math.PI) % (Math.PI*2) + Math.PI*2) % (Math.PI*2) - Math.PI;
-    return a + delta * u;
+    const p1 = seg.a[field];
+    const d2 = angleDelta(p1, seg.b[field]); // seg.b, expressed as a local delta from p1
+    const m1 = hermiteAngleTangent(kfs, seg.i, field);
+    const m2 = hermiteAngleTangent(kfs, seg.i + 1, field);
+    const { h00, h10, h01, h11 } = hermiteBasis(seg.u);
+    return p1 + h10*m1 + h01*d2 + h11*m2;
   }
 
   function applyKeyframesToObject(obj, t, hasPose){
@@ -2808,6 +2985,8 @@
         selected.userData.locked = !selected.userData.locked;
         refreshList();
       }
+    } else if (e.code === 'KeyK'){
+      if (selected) document.getElementById('tlAddKey').click();
     }
   });
 
@@ -2856,6 +3035,11 @@
     const u = easeInOut(lin);
     camera.position.copy(pathCurve.getPointAt(u));
     camera.lookAt(target);
+    // This bypasses updateCameraFromSpherical, so cache the clean pose here
+    // too — otherwise the handheld shake step in render() would stomp the
+    // path-driven position with a stale cached one every frame.
+    baseCamPos.copy(camera.position);
+    baseCamQuat.copy(camera.quaternion);
     updateCamMarker();
   }
 
@@ -2908,11 +3092,13 @@
       frame: { aspect: frameAspect, label: frameLabelText },
       camera: {
         radius, theta, phi, fov: camera.fov, lateral: camLateral,
+        handheld: handheldOn, handheldIntensity,
         target: { x: target.x, y: target.y, z: target.z },
         keyframes: cameraKeyframes.map(k => ({...k}))
       },
       timelineDuration,
       cameraDriveMode,
+      sunAzimuth, sunElevation,
       path: {
         points: pathPoints.map(p => ({...p})),
         height: pathHeight,
@@ -2967,6 +3153,64 @@
     select(null);
   }
 
+  // Resets everything back to the same state a freshly-loaded app is in:
+  // empty undo-pushed scene, default camera, timeline, and frame settings.
+  function resetAll(){
+    pushUndo();
+    suppressUndo = true;
+
+    clearSceneObjects();
+
+    cameraKeyframes = [];
+    pathPoints = [];
+    pathHeight = 1.6;
+    followPath = false;
+    document.getElementById('pathHeight').value = pathHeight;
+    document.getElementById('pathFollow').checked = followPath;
+    refreshPath();
+    cameraDriveMode = 'keyframes';
+    document.querySelectorAll('.drive-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === cameraDriveMode));
+
+    timelineDuration = 6;
+    tlDuration.value = timelineDuration;
+    setCurrentTime(0);
+
+    radius = 8; theta = Math.PI / 4; phi = Math.PI / 3.2; camLateral = 0;
+    target.set(0, 1, 0);
+    updateCameraFromSpherical();
+
+    handheldOn = false;
+    handheldIntensity = 0.4;
+    document.getElementById('handheldEnable').checked = false;
+    document.getElementById('handheldLabel').style.display = 'none';
+    document.getElementById('handheldIntensityRow').style.display = 'none';
+    document.getElementById('handheldHint').style.display = 'none';
+    document.getElementById('handheldIntensity').value = handheldIntensity;
+    document.getElementById('handheldIntensityLabel').value = handheldIntensity.toFixed(2);
+
+    frameAspect = null;
+    frameLabelText = '';
+    document.querySelectorAll('.frame-btn').forEach(b => b.classList.toggle('active', b.dataset.ratio === ''));
+    frameGuidesOn = false;
+    document.getElementById('frameGuides').checked = false;
+    frameGuideEls.forEach(el => el.style.display = 'none');
+    resize();
+
+    sunAzimuth = 40; sunElevation = 52;
+    document.getElementById('sunAzimuth').value = sunAzimuth;
+    document.getElementById('sunAzimuthLabel').value = sunAzimuth;
+    document.getElementById('sunElevation').value = sunElevation;
+    document.getElementById('sunElevationLabel').value = sunElevation;
+    updateSunPosition();
+
+    colorIdx = 0;
+    addCharacter(-0.8, 0);
+    addCharacter(0.8, -0.4);
+
+    suppressUndo = false;
+    refreshKeyframePanel();
+  }
+
   function loadShot(shot){
     pushUndo();
     clearSceneObjects();
@@ -2987,6 +3231,14 @@
     theta = shot.camera.theta;
     phi = shot.camera.phi;
     camLateral = shot.camera.lateral || 0;
+    handheldOn = !!shot.camera.handheld;
+    handheldIntensity = typeof shot.camera.handheldIntensity === 'number' ? shot.camera.handheldIntensity : 0.4;
+    document.getElementById('handheldEnable').checked = handheldOn;
+    document.getElementById('handheldLabel').style.display = handheldOn ? 'block' : 'none';
+    document.getElementById('handheldIntensityRow').style.display = handheldOn ? 'flex' : 'none';
+    document.getElementById('handheldHint').style.display = handheldOn ? 'block' : 'none';
+    document.getElementById('handheldIntensity').value = handheldIntensity;
+    document.getElementById('handheldIntensityLabel').value = handheldIntensity.toFixed(2);
     target.set(shot.camera.target.x, shot.camera.target.y, shot.camera.target.z);
     cameraKeyframes = shot.camera.keyframes.map(k => ({...k}));
     if (shot.camera.fov){
@@ -3003,6 +3255,14 @@
 
     cameraDriveMode = shot.cameraDriveMode || 'keyframes';
     document.querySelectorAll('.drive-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === cameraDriveMode));
+
+    sunAzimuth = typeof shot.sunAzimuth === 'number' ? shot.sunAzimuth : 40;
+    sunElevation = typeof shot.sunElevation === 'number' ? shot.sunElevation : 52;
+    document.getElementById('sunAzimuth').value = sunAzimuth;
+    document.getElementById('sunAzimuthLabel').value = sunAzimuth;
+    document.getElementById('sunElevation').value = sunElevation;
+    document.getElementById('sunElevationLabel').value = sunElevation;
+    updateSunPosition();
 
     pathPoints = shot.path.points.map(p => ({...p}));
     pathHeight = shot.path.height;
@@ -3198,6 +3458,12 @@
       updateCameraFromSpherical();
     });
   };
+  function confirmResetAll(){
+    if (!confirm('Reset the whole scene — characters, objects, camera, and timeline — back to defaults?\n\nThis can be undone with Ctrl/Cmd+Z.')) return;
+    resetAll();
+  }
+  document.getElementById('resetAllBtnTop').onclick = confirmResetAll;
+  document.getElementById('menuResetAll').onclick = () => { confirmResetAll(); mainMenu.classList.remove('open'); mainMenuBtn.classList.remove('open'); };
 
   // ---------- Recording ----------
   let mediaRecorder = null, chunks = [], recording = false;
@@ -3443,8 +3709,18 @@
 
   function render(){
     if (skeletonViewOn){ scene.updateMatrixWorld(); characters.forEach(updateSkeletonRig); }
-    updateSelectionIndicators();
-    updateLockIcons();
+    // The video recorder captures the live canvas continuously (not a single
+    // render like the still exports), so these UI-only overlays are hidden
+    // for the whole recording instead of being wrapped around one render call.
+    if (recording){
+      selectionMarker.visible = false;
+      selectionRing.visible = false;
+      lockIconSprites.forEach(spr => { spr.visible = false; });
+    } else {
+      updateSelectionIndicators();
+      updateLockIcons();
+    }
+    applyHandheldShake(currentTime);
     renderer.setScissorTest(false);
     renderer.setViewport(0, 0, viewport.w, viewport.h);
     if (depthViewOn){
