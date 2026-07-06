@@ -336,6 +336,9 @@
     border-radius: var(--radius); padding:5px 6px; width:52px;
   }
   input[type="range"] { width:100%; accent-color: var(--text); }
+  input[type="color"] { border:0.5px solid var(--panel-border); border-radius: var(--radius); background:transparent; }
+  input[type="color"]::-webkit-color-swatch-wrapper { padding:0; }
+  input[type="color"]::-webkit-color-swatch { border:none; border-radius: var(--radius); }
   .val-input {
     width:46px; flex-shrink:0; padding:3px 4px; font-size:11px; text-align:right;
     margin:0;
@@ -385,10 +388,12 @@
     background: #232323; border-top:0.5px solid var(--panel-border);
   }
   #kfDivider {
-    height:6px; flex-shrink:0; cursor:row-resize;
-    background: var(--panel-border);
+    height:7px; flex-shrink:0; cursor:row-resize;
+    background: rgba(255,255,255,0.18);
+    border-top:1px solid rgba(255,255,255,0.28);
+    border-bottom:1px solid rgba(255,255,255,0.28);
   }
-  #kfDivider:hover, #kfDivider.dragging { background: var(--accent); }
+  #kfDivider:hover, #kfDivider.dragging { background: var(--accent); border-color: var(--accent); }
   #kfToolbar {
     height:32px; flex-shrink:0; display:flex; flex-direction:row; align-items:center;
     gap:8px; padding:0 10px; border-bottom:0.5px solid var(--panel-border);
@@ -626,10 +631,19 @@
       <button id="addCube">+ Cube</button>
       <button id="addPyramid">+ Pyramid</button>
     </div>
+    <div class="row align" id="colorRow" style="margin-top:8px; display:none">
+      <span class="label-sm">Color</span>
+      <input type="color" id="objColor" value="#d98e4a" style="flex:1; height:28px; padding:2px; cursor:pointer;">
+    </div>
     <div class="row align" id="heightRow" style="margin-top:8px; display:none">
       <span class="label-sm">Height</span>
       <input type="range" id="objHeight" min="-2" max="5" step="0.05" value="0">
       <input type="number" class="val-input" id="objHeightLabel" min="-2" max="5" step="0.05" value="0">
+    </div>
+    <div class="row align" id="charSizeRow" style="margin-top:8px; display:none">
+      <span class="label-sm">Size</span>
+      <input type="range" id="charSize" min="0.3" max="2.5" step="0.01" value="1">
+      <input type="number" class="val-input" id="charSizeLabel" min="0.05" step="0.01" value="1.00">
     </div>
     <div class="row align" id="rotationRow" style="margin-top:8px; display:none">
       <span class="label-sm">Rotate Y</span>
@@ -861,18 +875,30 @@
 
   <section>
     <h2>Shots</h2>
-    <button class="primary" id="saveShot">+ Save shot</button>
+    <div class="row" style="margin-bottom:6px">
+      <button class="primary" id="saveShot">+ Save shot</button>
+      <button id="updateShot" disabled title="Overwrite the loaded shot with the current scene">Update shot</button>
+    </div>
     <div id="shotList"></div>
     <div class="row" style="margin-top:6px">
       <button id="exportShots">Export file</button>
       <button id="importShotsBtn">Import file</button>
     </div>
     <input type="file" id="importShotsFile" accept="application/json" style="display:none">
-    <div class="hint">Saves the camera, characters, objects, keyframes and path so you can recall this setup later. Export/import to back up or share the shot list as a file.</div>
+    <div class="hint">Saves the camera, characters, objects, keyframes and path so you can recall this setup later. Click a shot to load it, then "Update shot" to save changes back into it. Export/import to back up or share the shot list as a file.</div>
   </section>
 
   <section>
     <h2>Export</h2>
+    <div class="row align" style="margin-bottom:6px">
+      <span class="label-sm">Video fps</span>
+      <select id="recFps" style="flex:1">
+        <option value="24">24</option>
+        <option value="25">25</option>
+        <option value="30" selected>30</option>
+        <option value="60">60</option>
+      </select>
+    </div>
     <button class="primary" id="recBtn">● Record</button>
     <div id="status"></div>
     <div id="dlWrap"></div>
@@ -1744,6 +1770,14 @@
     // Rest pose is a slight A-pose, not arms-straight-down.
     setJoint(root, 'shoulderOutL', 17);
     setJoint(root, 'shoulderOutR', 17);
+    // Real standing height at scale 1, measured off the actual mesh rather than
+    // hardcoded — lets the Size field read/write real-world units like the
+    // prop dimensions do, without having to hand-sum every limb segment.
+    root.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(root);
+    root.userData.baseHeight = box.max.y - box.min.y;
+    // New characters default to a real 1.70m standing height.
+    root.scale.setScalar(1.70 / root.userData.baseHeight);
     return root;
   }
 
@@ -1922,9 +1956,14 @@
     document.getElementById('propDepthLabel').value = toUnitValue(size.d * selected.scale.z).toFixed(2);
     document.getElementById('propHeightLabel').value = toUnitValue(size.h * selected.scale.y).toFixed(2);
   }
+  function refreshCharSizeLabel(){
+    if (!selected || selected === 'camera' || !selected.userData.parts) return;
+    document.getElementById('charSizeLabel').value = toUnitValue(selected.userData.baseHeight * selected.scale.x).toFixed(2);
+  }
   document.getElementById('sizeUnit').onchange = (e) => {
     sizeUnit = e.target.value;
     refreshPropLabels();
+    refreshCharSizeLabel();
   };
 
   const PROP_SIZES = {
@@ -1990,12 +2029,24 @@
       refreshPropLabels();
     }
     const isRotatable = isChar || isProp;
+    const colorRow = document.getElementById('colorRow');
+    colorRow.style.display = isRotatable ? 'flex' : 'none';
+    if (isRotatable){
+      const mat = isChar ? selected.userData.parts.mat : selected.material;
+      document.getElementById('objColor').value = '#' + mat.color.getHexString();
+    }
     const heightRow = document.getElementById('heightRow');
     heightRow.style.display = isRotatable ? 'flex' : 'none';
     if (isRotatable){
       const y = isProp ? (selected.userData.heightOffset || 0) : selected.position.y;
       document.getElementById('objHeight').value = y;
       document.getElementById('objHeightLabel').value = y.toFixed(2);
+    }
+    const charSizeRow = document.getElementById('charSizeRow');
+    charSizeRow.style.display = isChar ? 'flex' : 'none';
+    if (isChar){
+      document.getElementById('charSize').value = selected.scale.x;
+      refreshCharSizeLabel();
     }
     const rotationRow = document.getElementById('rotationRow');
     rotationRow.style.display = isRotatable ? 'flex' : 'none';
@@ -2203,6 +2254,13 @@
   document.getElementById('addSphere').onclick = () => addProp('sphere');
   document.getElementById('addCube').onclick = () => addProp('cube');
   document.getElementById('addPyramid').onclick = () => addProp('pyramid');
+  document.getElementById('objColor').addEventListener('pointerdown', pushUndo);
+  document.getElementById('objColor').oninput = (e) => {
+    if (!selected || selected === 'camera' || selected.isCharGroup) return;
+    const mat = selected.userData.parts ? selected.userData.parts.mat : selected.material;
+    mat.color.set(e.target.value);
+    refreshList();
+  };
   // The range gives coarse control over a generous-but-finite span; the
   // number field takes any value typed (no upper bound) — sizes are
   // effectively unlimited, just via the keyboard past the slider's range.
@@ -2274,6 +2332,11 @@
     } else {
       selected.position.y = val;
     }
+  });
+  bindRangeWithNumber(document.getElementById('charSize'), document.getElementById('charSizeLabel'), (val) => {
+    if (!selected || selected === 'camera' || selected.isCharGroup || !selected.userData.parts) return;
+    if (val <= 0) return;
+    selected.scale.setScalar(val);
   });
   const POSE_ORDER = ['stand', 'sit', 'lie'];
   document.getElementById('poseToggle').onclick = () => {
@@ -2663,8 +2726,16 @@
     const kfs = getKeyframes(obj);
     let kf;
     if (obj === 'camera') kf = { t, radius, theta, phi, tx: target.x, ty: target.y, tz: target.z };
-    else if (obj.userData.isProp) kf = { t, x: obj.position.x, y: obj.position.y, z: obj.position.z, rotY: obj.rotation.y, rotX: obj.rotation.x, rotZ: obj.rotation.z };
-    else kf = { t, x: obj.position.x, y: obj.position.y, z: obj.position.z, pose: obj.userData.pose, rotY: obj.rotation.y };
+    else if (obj.userData.isProp) kf = {
+      t, x: obj.position.x, y: obj.position.y, z: obj.position.z,
+      rotY: obj.rotation.y, rotX: obj.rotation.x, rotZ: obj.rotation.z,
+      scaleX: obj.scale.x, scaleY: obj.scale.y, scaleZ: obj.scale.z
+    };
+    else kf = {
+      t, x: obj.position.x, y: obj.position.y, z: obj.position.z,
+      pose: obj.userData.pose, rotY: obj.rotation.y, size: obj.scale.x,
+      joints: {...obj.userData.joints}
+    };
     const i = kfs.findIndex(k => Math.abs(k.t - t) < 0.005);
     if (i >= 0) kfs[i] = kf;
     else { kfs.push(kf); kfs.sort((a,b)=>a.t-b.t); }
@@ -2738,28 +2809,6 @@
     return h00*p1 + h10*m1 + h01*p2 + h11*m2;
   }
 
-  function angleDelta(a, b){
-    return ((b - a + Math.PI) % (Math.PI*2) + Math.PI*2) % (Math.PI*2) - Math.PI;
-  }
-
-  // Same Hermite scheme as interpKfField, but every difference (tangents and
-  // the segment's own start-to-end delta) is taken as the shortest signed
-  // angle instead of a raw subtraction, so a track can't spin the long way
-  // round just because two keyframes happen to be stored on opposite sides
-  // of the +-180° wrap.
-  function hermiteAngleTangent(kfs, i, field){
-    if (i === 0 || i === kfs.length - 1) return 0;
-    return angleDelta(kfs[i-1][field], kfs[i+1][field]) / 2;
-  }
-  function interpAngleField(kfs, seg, field){
-    if (seg.a === seg.b) return seg.a[field];
-    const p1 = seg.a[field];
-    const d2 = angleDelta(p1, seg.b[field]); // seg.b, expressed as a local delta from p1
-    const m1 = hermiteAngleTangent(kfs, seg.i, field);
-    const m2 = hermiteAngleTangent(kfs, seg.i + 1, field);
-    const { h00, h10, h01, h11 } = hermiteBasis(seg.u);
-    return p1 + h10*m1 + h01*d2 + h11*m2;
-  }
 
   function applyKeyframesToObject(obj, t, hasPose){
     const kfs = getKeyframes(obj);
@@ -2768,14 +2817,38 @@
     obj.position.x = interpKfField(kfs, seg, 'x');
     obj.position.z = interpKfField(kfs, seg, 'z');
     if (typeof seg.a.y === 'number' && typeof seg.b.y === 'number') obj.position.y = interpKfField(kfs, seg, 'y');
-    if (typeof seg.a.rotY === 'number' && typeof seg.b.rotY === 'number') obj.rotation.y = interpAngleField(kfs, seg, 'rotY');
-    if (typeof seg.a.rotX === 'number' && typeof seg.b.rotX === 'number') obj.rotation.x = interpAngleField(kfs, seg, 'rotX');
-    if (typeof seg.a.rotZ === 'number' && typeof seg.b.rotZ === 'number') obj.rotation.z = interpAngleField(kfs, seg, 'rotZ');
+    // Rotations interpolate as plain raw radians (no shortest-path wraparound):
+    // keyframe values are unbounded and typed directly (e.g. 0 -> 720deg for
+    // two full turns), so collapsing the delta to within +-180 would silently
+    // erase intentional multi-turn spins.
+    if (typeof seg.a.rotY === 'number' && typeof seg.b.rotY === 'number') obj.rotation.y = interpKfField(kfs, seg, 'rotY');
+    if (typeof seg.a.rotX === 'number' && typeof seg.b.rotX === 'number') obj.rotation.x = interpKfField(kfs, seg, 'rotX');
+    if (typeof seg.a.rotZ === 'number' && typeof seg.b.rotZ === 'number') obj.rotation.z = interpKfField(kfs, seg, 'rotZ');
+    if (typeof seg.a.scaleX === 'number' && typeof seg.b.scaleX === 'number'){
+      obj.scale.x = interpKfField(kfs, seg, 'scaleX');
+      obj.scale.y = interpKfField(kfs, seg, 'scaleY');
+      obj.scale.z = interpKfField(kfs, seg, 'scaleZ');
+    }
+    if (typeof seg.a.size === 'number' && typeof seg.b.size === 'number') obj.scale.setScalar(interpKfField(kfs, seg, 'size'));
     if (hasPose){
       let poseKf = kfs[0];
       for (const k of kfs) if (k.t <= t) poseKf = k;
       if (obj.userData.pose !== poseKf.pose) applyPose(obj, poseKf.pose);
+      JOINT_NAMES.forEach(n => {
+        const v = interpJointField(kfs, t, n);
+        if (v !== null) setJoint(obj, n, v);
+      });
     }
+  }
+
+  // Joints live in a per-keyframe sub-object rather than as a flat field, so
+  // they get their own small self-contained segment/interpolation instead of
+  // reusing interpKfField's seg (which points at the outer x/y/z/rotY keyframes).
+  function interpJointField(kfs, t, jointName){
+    const synth = kfs.filter(k => k.joints && typeof k.joints[jointName] === 'number').map(k => ({ t: k.t, v: k.joints[jointName] }));
+    if (!synth.length) return null;
+    const seg = findKfSegment(synth, t);
+    return interpKfField(synth, seg, 'v');
   }
 
   function applyTimeline(t){
@@ -3080,6 +3153,8 @@
   const SHOTS_KEY = 'blocking-tool-shots';
   let shots = [];
   try { shots = JSON.parse(localStorage.getItem(SHOTS_KEY) || '[]'); } catch(e){ shots = []; }
+  let loadedShotIndex = null; // which saved shot (if any) the current scene was loaded from
+  let currentShotName = 'blocking'; // used to name image/video exports
 
   function persistShots(){
     try { localStorage.setItem(SHOTS_KEY, JSON.stringify(shots)); } catch(e){}
@@ -3106,16 +3181,17 @@
       },
       characters: characters.map(root => ({
         x: root.position.x, y: root.position.y, z: root.position.z, rotY: root.rotation.y,
-        pose: root.userData.pose, name: root.userData.name,
+        pose: root.userData.pose, name: root.userData.name, size: root.scale.x,
         color: root.userData.parts.mat.color.getHex(),
         joints: {...root.userData.joints},
-        keyframes: (root.userData.keyframes || []).map(k => ({...k}))
+        keyframes: (root.userData.keyframes || []).map(k => ({...k, joints: k.joints ? {...k.joints} : undefined}))
       })),
       objects: objects.map(mesh => ({
         type: mesh.userData.type, x: mesh.position.x, z: mesh.position.z, name: mesh.userData.name,
         rotY: mesh.rotation.y, rotX: mesh.rotation.x, rotZ: mesh.rotation.z,
         scaleW: mesh.scale.x, scaleH: mesh.scale.y, scaleD: mesh.scale.z,
         heightY: mesh.userData.heightOffset || 0,
+        color: mesh.material.color.getHex(),
         keyframes: (mesh.userData.keyframes || []).map(k => ({...k}))
       }))
     };
@@ -3158,6 +3234,10 @@
   function resetAll(){
     pushUndo();
     suppressUndo = true;
+
+    loadedShotIndex = null;
+    currentShotName = 'blocking';
+    updateShotBtnState();
 
     clearSceneObjects();
 
@@ -3275,11 +3355,12 @@
       addCharacter(c.x, c.z);
       const root = characters[characters.length - 1];
       root.userData.name = c.name;
-      root.userData.keyframes = c.keyframes.map(k => ({...k}));
+      root.userData.keyframes = c.keyframes.map(k => ({...k, joints: k.joints ? {...k.joints} : undefined}));
       applyPose(root, c.pose);
       root.userData.parts.mat.color.setHex(c.color);
       if (typeof c.rotY === 'number') root.rotation.y = c.rotY;
       if (typeof c.y === 'number') root.position.y = c.y;
+      if (typeof c.size === 'number' && c.size > 0) root.scale.setScalar(c.size);
       JOINT_NAMES.forEach(n => setJoint(root, n, (c.joints && c.joints[n]) || 0));
     });
 
@@ -3297,6 +3378,7 @@
       if (typeof o.rotY === 'number') mesh.rotation.y = o.rotY;
       if (typeof o.rotX === 'number') mesh.rotation.x = o.rotX;
       if (typeof o.rotZ === 'number') mesh.rotation.z = o.rotZ;
+      if (typeof o.color === 'number') mesh.material.color.setHex(o.color);
     });
 
     select(null);
@@ -3309,7 +3391,7 @@
     list.innerHTML = '';
     shots.forEach((shot, i) => {
       const item = document.createElement('div');
-      item.className = 'char-item';
+      item.className = 'char-item' + (loadedShotIndex === i ? ' selected' : '');
       const label = document.createElement('div');
       label.className = 'label';
       label.textContent = shot.name;
@@ -3320,20 +3402,43 @@
       del.onclick = (ev) => {
         ev.stopPropagation();
         shots.splice(i, 1);
+        if (loadedShotIndex === i) loadedShotIndex = null;
+        else if (loadedShotIndex !== null && loadedShotIndex > i) loadedShotIndex--;
         persistShots();
         refreshShotList();
+        updateShotBtnState();
       };
       item.append(label, del);
-      item.onclick = () => loadShot(shot);
+      item.onclick = () => {
+        loadShot(shot);
+        loadedShotIndex = i;
+        currentShotName = shot.name;
+        refreshShotList();
+        updateShotBtnState();
+      };
       list.appendChild(item);
     });
     document.getElementById('tbShotCount').textContent = shots.length + (shots.length === 1 ? ' shot saved' : ' shots saved');
   }
 
+  function updateShotBtnState(){
+    document.getElementById('updateShot').disabled = loadedShotIndex === null;
+  }
+
   document.getElementById('saveShot').onclick = () => {
     const name = prompt('Shot name', 'Shot ' + (shots.length + 1));
     if (name === null) return;
-    shots.push(captureShot(name || ('Shot ' + (shots.length + 1))));
+    const finalName = name || ('Shot ' + (shots.length + 1));
+    shots.push(captureShot(finalName));
+    loadedShotIndex = shots.length - 1;
+    currentShotName = finalName;
+    persistShots();
+    refreshShotList();
+    updateShotBtnState();
+  };
+  document.getElementById('updateShot').onclick = () => {
+    if (loadedShotIndex === null) return;
+    shots[loadedShotIndex] = captureShot(shots[loadedShotIndex].name);
     persistShots();
     refreshShotList();
   };
@@ -3369,6 +3474,7 @@
   };
 
   refreshShotList();
+  updateShotBtnState();
 
   // ---------- Top toolbar menu ----------
   const mainMenuBtn = document.getElementById('mainMenuBtn');
@@ -3467,6 +3573,7 @@
 
   // ---------- Recording ----------
   let mediaRecorder = null, chunks = [], recording = false;
+  let recordTrack = null, recordFrameMs = 1000/30, lastCaptureTs = 0;
   const recBtn = document.getElementById('recBtn');
   const statusEl = document.getElementById('status');
   const dlWrap = document.getElementById('dlWrap');
@@ -3480,7 +3587,17 @@
     dlWrap.innerHTML = '';
     chunks = [];
     let stream;
-    try { stream = canvas.captureStream(30); }
+    const fps = parseInt(document.getElementById('recFps').value, 10) || 30;
+    recordFrameMs = 1000 / fps;
+    lastCaptureTs = 0;
+    try {
+      // 0 = manual mode: the browser won't auto-sample the canvas on its own timer.
+      // We push frames ourselves (see render()) paced to the chosen fps, so the
+      // output timing matches our own render loop instead of two independent,
+      // unsynced clocks racing each other (which read as stutter in the export).
+      stream = canvas.captureStream(0);
+      recordTrack = stream.getVideoTracks()[0];
+    }
     catch(err){ statusEl.textContent = "Video capture not supported in this browser."; return; }
 
     let mime = 'video/webm;codecs=vp9';
@@ -3497,13 +3614,14 @@
       const a = document.createElement('a');
       a.className = 'dl-link';
       a.href = url;
-      a.download = 'blocking-preview.webm';
+      a.download = exportNameStem() + '.webm';
       a.textContent = '↓ Download video';
       dlWrap.appendChild(a);
       statusEl.textContent = '';
       recBtn.innerHTML = '● Record';
       recBtn.classList.remove('active');
       recording = false;
+      recordTrack = null;
     };
 
     mediaRecorder.start();
@@ -3565,13 +3683,19 @@
     lockIconSprites.forEach(spr => { spr.visible = true; });
   }
 
+  // A filesystem-safe stem for exported files, from the loaded/saved shot's
+  // name (falls back to "blocking" if nothing's been named yet).
+  function exportNameStem(){
+    return (currentShotName || 'blocking').trim().replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '') || 'blocking';
+  }
+
   function exportFrame(){
     withoutHelperOverlays(() => {
       renderer.setScissorTest(false);
       renderer.setViewport(0, 0, viewport.w, viewport.h);
       renderer.render(scene, camera);
     });
-    downloadCanvas(cropToFrame(), 'blocking-frame-' + currentTime.toFixed(1) + 's.jpg', 'image/jpeg', 0.92);
+    downloadCanvas(cropToFrame(), exportNameStem() + '-' + currentTime.toFixed(1) + 's.jpg', 'image/jpeg', 0.92);
   }
 
   // Depth map: swap in MeshDepthMaterial for one render, with helper/overlay
@@ -3677,7 +3801,7 @@
       renderer.render(scene, camera);
     });
     // Lossless — a lossy JPEG would band the smooth depth gradient.
-    downloadCanvas(invertCanvas(cropToFrame()), 'blocking-depth-' + currentTime.toFixed(1) + 's.png', 'image/png');
+    downloadCanvas(invertCanvas(cropToFrame()), exportNameStem() + '-depth-' + currentTime.toFixed(1) + 's.png', 'image/png');
   }
 
   let depthViewOn = false;
@@ -3729,6 +3853,13 @@
       renderer.render(scene, camera);
     }
     topRenderer.render(scene, topCamera);
+    if (recording && recordTrack){
+      const now = performance.now();
+      if (now - lastCaptureTs >= recordFrameMs){
+        lastCaptureTs = now;
+        recordTrack.requestFrame();
+      }
+    }
     requestAnimationFrame(render);
   }
   render();
