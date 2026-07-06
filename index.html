@@ -255,6 +255,12 @@
   }
   #camHud .hud-val { font-size:11px; color:#fff; width:40px; text-align:right; flex-shrink:0; }
   #camHud input[type="range"] { flex:1; width:auto; accent-color:#fff; }
+  #camHud .hud-scrub {
+    flex:1; width:auto; font-size:11px; color:#fff; text-align:right;
+    background: rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.28);
+    border-radius:4px; padding:3px 6px; margin:0; cursor:ew-resize;
+  }
+  #camHud .hud-scrub:focus { cursor:text; background: rgba(255,255,255,0.18); }
   .hud-lens-btn {
     width:20px; flex-shrink:0; margin:0; padding:3px 0; text-align:center;
     background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.25); color:#fff;
@@ -340,11 +346,11 @@
   input[type="color"]::-webkit-color-swatch-wrapper { padding:0; }
   input[type="color"]::-webkit-color-swatch { border:none; border-radius: var(--radius); }
   .val-input {
-    width:46px; flex-shrink:0; padding:3px 4px; font-size:11px; text-align:right;
-    margin:0;
+    flex:1; width:auto; padding:5px 6px; font-size:12px; text-align:right;
+    margin:0; cursor:ew-resize;
   }
+  .val-input:focus { cursor:text; }
   input[type="checkbox"] { accent-color: var(--text); }
-  .row input[type="range"] { flex:1; width:auto; min-width:0; }
   .row .label-sm { font-size:11px; color:var(--text-dim); width:44px; flex-shrink:0; }
   .swatches { display:flex; gap:6px; }
   .swatch {
@@ -530,23 +536,19 @@
         </div>
         <div class="hud-row">
           <span class="hud-label">Height</span>
-          <input type="range" id="hudHeight" min="0.2" max="8" step="0.05" value="1">
-          <span class="hud-val" id="hudHeightVal">1.0m</span>
+          <input type="number" class="hud-scrub" id="hudHeight" step="0.05" value="1.00" title="Drag sideways to scrub, click to type">
         </div>
         <div class="hud-row">
           <span class="hud-label">Tilt</span>
-          <input type="range" id="hudTilt" min="-89" max="89" step="1" value="34">
-          <span class="hud-val" id="hudTiltVal">34°</span>
+          <input type="number" class="hud-scrub" id="hudTilt" step="1" value="34" title="Drag sideways to scrub, click to type">
         </div>
         <div class="hud-row">
           <span class="hud-label">Pan</span>
-          <input type="range" id="hudPan" min="0" max="360" step="1" value="45">
-          <span class="hud-val" id="hudPanVal">45°</span>
+          <input type="number" class="hud-scrub" id="hudPan" step="1" value="45" title="Drag sideways to scrub, click to type">
         </div>
         <div class="hud-row">
           <span class="hud-label">Lateral</span>
-          <input type="range" id="hudLateral" min="-10" max="10" step="0.05" value="0">
-          <span class="hud-val" id="hudLateralVal">0.00m</span>
+          <input type="number" class="hud-scrub" id="hudLateral" step="0.05" value="0.00" title="Drag sideways to scrub, click to type">
         </div>
         <div class="hud-row">
           <span class="hud-label">Lens</span>
@@ -631,108 +633,100 @@
       <button id="addCube">+ Cube</button>
       <button id="addPyramid">+ Pyramid</button>
     </div>
+    <div class="row" style="margin-top:6px">
+      <button id="addCage" title="Hollow box made of edges only — resize it to use as a car/cage frame with characters inside">+ Cage</button>
+    </div>
     <div class="row align" id="colorRow" style="margin-top:8px; display:none">
       <span class="label-sm">Color</span>
       <input type="color" id="objColor" value="#d98e4a" style="flex:1; height:28px; padding:2px; cursor:pointer;">
     </div>
+    <div class="row align" id="posXRow" style="margin-top:8px; display:none">
+      <span class="label-sm">X</span>
+      <input type="number" class="val-input" id="objPosXLabel" step="0.05" value="0.00">
+    </div>
+    <div class="row align" id="posZRow" style="margin-top:8px; display:none">
+      <span class="label-sm">Z</span>
+      <input type="number" class="val-input" id="objPosZLabel" step="0.05" value="0.00">
+    </div>
     <div class="row align" id="heightRow" style="margin-top:8px; display:none">
       <span class="label-sm">Height</span>
-      <input type="range" id="objHeight" min="-2" max="5" step="0.05" value="0">
       <input type="number" class="val-input" id="objHeightLabel" min="-2" max="5" step="0.05" value="0">
     </div>
     <div class="row align" id="charSizeRow" style="margin-top:8px; display:none">
       <span class="label-sm">Size</span>
-      <input type="range" id="charSize" min="0.3" max="2.5" step="0.01" value="1">
       <input type="number" class="val-input" id="charSizeLabel" min="0.05" step="0.01" value="1.00">
     </div>
     <div class="row align" id="rotationRow" style="margin-top:8px; display:none">
       <span class="label-sm">Rotate Y</span>
-      <input type="range" id="objRotation" min="0" max="360" step="1" value="0">
       <input type="number" class="val-input" id="objRotationLabel" min="0" max="360" step="1" value="0">
     </div>
     <div class="row align" id="propRotateXZRow" style="margin-top:8px; display:none; flex-direction:column; align-items:stretch; gap:6px">
       <div class="row align">
         <span class="label-sm">Rotate X</span>
-        <input type="range" id="objRotationX" min="-180" max="180" step="1" value="0">
         <input type="number" class="val-input" id="objRotationXLabel" min="-180" max="180" step="1" value="0">
       </div>
       <div class="row align">
         <span class="label-sm">Rotate Z</span>
-        <input type="range" id="objRotationZ" min="-180" max="180" step="1" value="0">
         <input type="number" class="val-input" id="objRotationZLabel" min="-180" max="180" step="1" value="0">
       </div>
     </div>
     <div class="row align" id="jointsRow" style="margin-top:8px; display:none; flex-direction:column; align-items:stretch; gap:6px">
       <div class="row align">
         <span class="label-sm">Shoulder L</span>
-        <input type="range" id="jointShoulderL" min="-150" max="150" step="1" value="0">
         <input type="number" class="val-input" id="jointShoulderLLabel" min="-150" max="150" step="1" value="0">
       </div>
       <div class="row align">
         <span class="label-sm">Shoulder R</span>
-        <input type="range" id="jointShoulderR" min="-150" max="150" step="1" value="0">
         <input type="number" class="val-input" id="jointShoulderRLabel" min="-150" max="150" step="1" value="0">
       </div>
       <div class="row align">
         <span class="label-sm" style="width:70px">Shoulder Out L</span>
-        <input type="range" id="jointShoulderOutL" min="0" max="100" step="1" value="17">
         <input type="number" class="val-input" id="jointShoulderOutLLabel" min="0" max="100" step="1" value="17">
       </div>
       <div class="row align">
         <span class="label-sm" style="width:70px">Shoulder Out R</span>
-        <input type="range" id="jointShoulderOutR" min="0" max="100" step="1" value="17">
         <input type="number" class="val-input" id="jointShoulderOutRLabel" min="0" max="100" step="1" value="17">
       </div>
       <div class="row align">
         <span class="label-sm">Elbow L</span>
-        <input type="range" id="jointElbowL" min="0" max="150" step="1" value="0">
         <input type="number" class="val-input" id="jointElbowLLabel" min="0" max="150" step="1" value="0">
       </div>
       <div class="row align">
         <span class="label-sm">Elbow R</span>
-        <input type="range" id="jointElbowR" min="0" max="150" step="1" value="0">
         <input type="number" class="val-input" id="jointElbowRLabel" min="0" max="150" step="1" value="0">
       </div>
       <div class="row align">
         <span class="label-sm">Hip L</span>
-        <input type="range" id="jointHipL" min="-100" max="100" step="1" value="0">
         <input type="number" class="val-input" id="jointHipLLabel" min="-100" max="100" step="1" value="0">
       </div>
       <div class="row align">
         <span class="label-sm">Hip R</span>
-        <input type="range" id="jointHipR" min="-100" max="100" step="1" value="0">
         <input type="number" class="val-input" id="jointHipRLabel" min="-100" max="100" step="1" value="0">
       </div>
       <div class="row align">
         <span class="label-sm">Knee L</span>
-        <input type="range" id="jointKneeL" min="0" max="130" step="1" value="0">
         <input type="number" class="val-input" id="jointKneeLLabel" min="0" max="130" step="1" value="0">
       </div>
       <div class="row align">
         <span class="label-sm">Knee R</span>
-        <input type="range" id="jointKneeR" min="0" max="130" step="1" value="0">
         <input type="number" class="val-input" id="jointKneeRLabel" min="0" max="130" step="1" value="0">
       </div>
       <div class="row align">
         <span class="label-sm">Head</span>
-        <input type="range" id="jointNeck" min="-60" max="60" step="1" value="0">
         <input type="number" class="val-input" id="jointNeckLabel" min="-60" max="60" step="1" value="0">
       </div>
     </div>
     <div class="row align" id="propScaleRow" style="margin-top:8px; display:none; flex-direction:column; align-items:stretch; gap:6px">
       <div class="row align">
         <span class="label-sm">Width</span>
-        <input type="range" id="propWidth" min="0.05" max="50" step="0.05" value="1">
         <input type="number" class="val-input" id="propWidthLabel" min="0.01" step="0.05" value="1.00">
       </div>
       <div class="row align">
         <span class="label-sm">Depth</span>
-        <input type="range" id="propDepth" min="0.05" max="50" step="0.05" value="1">
         <input type="number" class="val-input" id="propDepthLabel" min="0.01" step="0.05" value="1.00">
       </div>
       <div class="row align">
         <span class="label-sm">Height</span>
-        <input type="range" id="propHeight" min="0.05" max="50" step="0.05" value="1">
         <input type="number" class="val-input" id="propHeightLabel" min="0.01" step="0.05" value="1.00">
       </div>
     </div>
@@ -751,12 +745,10 @@
     </label>
     <div class="row align" style="margin-top:10px; margin-bottom:6px">
       <span class="label-sm">Sun azimuth</span>
-      <input type="range" id="sunAzimuth" min="0" max="360" step="1" value="40">
       <input type="number" class="val-input" id="sunAzimuthLabel" min="0" max="360" step="1" value="40">
     </div>
     <div class="row align">
       <span class="label-sm">Sun height</span>
-      <input type="range" id="sunElevation" min="5" max="90" step="1" value="52">
       <input type="number" class="val-input" id="sunElevationLabel" min="5" max="90" step="1" value="52">
     </div>
     <div class="hint">Azimuth = direction the light comes from. Height = angle above the horizon (low = long shadows, high = overhead).</div>
@@ -809,22 +801,18 @@
     <h2>Camera position</h2>
     <div class="row align" style="margin-bottom:6px">
       <span class="label-sm">Height</span>
-      <input type="range" id="camHeight" min="0.2" max="8" step="0.05" value="1">
       <input type="number" class="val-input" id="camHeightLabel" min="0.2" step="0.05" value="1.0">
     </div>
     <div class="row align" style="margin-bottom:6px">
       <span class="label-sm">Tilt</span>
-      <input type="range" id="camTilt" min="-89" max="89" step="1" value="34">
       <input type="number" class="val-input" id="camTiltLabel" min="-89" max="89" step="1" value="34">
     </div>
     <div class="row align" style="margin-bottom:6px">
       <span class="label-sm">Pan</span>
-      <input type="range" id="camPan" min="0" max="360" step="1" value="45">
       <input type="number" class="val-input" id="camPanLabel" min="0" max="360" step="1" value="45">
     </div>
     <div class="row align">
       <span class="label-sm">Lateral</span>
-      <input type="range" id="camLateral" min="-10" max="10" step="0.05" value="0">
       <input type="number" class="val-input" id="camLateralLabel" step="0.05" value="0.00">
     </div>
     <div class="hint">Height = height of the point the camera looks at. Tilt = angle above the horizon (negative = camera below, looking up — contre-plongée). Pan = angle around the subject. Lateral = truck sideways without changing angle or distance.</div>
@@ -845,7 +833,6 @@
       <input type="checkbox" id="handheldEnable"> Handheld camera</label>
     <div class="row align" id="handheldIntensityRow" style="margin-top:6px; display:none">
       <span class="label-sm">Intensity</span>
-      <input type="range" id="handheldIntensity" min="0" max="1" step="0.02" value="0.4">
       <input type="number" class="val-input" id="handheldIntensityLabel" min="0" max="1" step="0.02" value="0.40">
     </div>
     <div class="hint" id="handheldHint" style="display:none">Procedural shake (position + rotation drift), driven by the timeline so it's identical every time you scrub or export — not random per real-world second.</div>
@@ -946,6 +933,7 @@
     <div class="sc-row"><span>Show / hide floor grid</span><span class="sc-key">G</span></div>
     <div class="sc-row"><span>Lock / unlock selected item</span><span class="sc-key">L</span></div>
     <div class="sc-row"><span>Add keyframe for the selected item</span><span class="sc-key">K</span></div>
+    <div class="sc-row"><span>Nudge the selected item/camera (hold Shift for bigger steps)</span><span class="sc-key">Arrow keys</span></div>
     <div class="sc-row"><span>Close this or any other dialog</span><span class="sc-key">Esc</span></div>
 
     <h3>Main &amp; top views</h3>
@@ -975,13 +963,11 @@
     <div class="row align" id="depthRangeRow" style="margin-bottom:10px; flex-direction:column; align-items:stretch; gap:6px">
       <div class="row align">
         <span class="label-sm">Near</span>
-        <input type="range" id="depthNear" min="0.05" max="20" step="0.05" value="0.5" disabled>
-        <span class="hint" style="margin:0; width:52px; text-align:right" id="depthNearLabel">0.50m</span>
+        <input type="number" class="val-input" id="depthNear" step="0.05" value="0.50" disabled>
       </div>
       <div class="row align">
         <span class="label-sm">Far</span>
-        <input type="range" id="depthFar" min="0.1" max="100" step="0.1" value="10" disabled>
-        <span class="hint" style="margin:0; width:52px; text-align:right" id="depthFarLabel">10.0m</span>
+        <input type="number" class="val-input" id="depthFar" step="0.1" value="10.0" disabled>
       </div>
     </div>
     <button class="primary" id="depthExportConfirm">Export PNG</button>
@@ -1219,14 +1205,14 @@
     frameGuideEls.forEach(el => el.style.display = frameGuidesOn ? '' : 'none');
   };
 
-  bindRangeWithNumber(document.getElementById('sunAzimuth'), document.getElementById('sunAzimuthLabel'), (v) => {
+  makeScrubbable(document.getElementById('sunAzimuthLabel'), 0.5, (v) => {
     sunAzimuth = v;
     updateSunPosition();
-  });
-  bindRangeWithNumber(document.getElementById('sunElevation'), document.getElementById('sunElevationLabel'), (v) => {
+  }, 0);
+  makeScrubbable(document.getElementById('sunElevationLabel'), 0.5, (v) => {
     sunElevation = v;
     updateSunPosition();
-  });
+  }, 0);
 
   // lights
   const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 0.9);
@@ -1410,44 +1396,37 @@
   let camLookX = 0, camLookZ = 0; // the actual look-at point once the lateral offset is applied
   function clampPhi(p){ return Math.max(0.02, Math.min(Math.PI - 0.02, p)); }
 
-  const camHeightInput = document.getElementById('camHeight');
   const camHeightLabel = document.getElementById('camHeightLabel');
-  const camTiltInput = document.getElementById('camTilt');
   const camTiltLabel = document.getElementById('camTiltLabel');
-  const camPanInput = document.getElementById('camPan');
   const camPanLabel = document.getElementById('camPanLabel');
 
   const hudHeight = document.getElementById('hudHeight');
-  const hudHeightVal = document.getElementById('hudHeightVal');
   const hudTilt = document.getElementById('hudTilt');
-  const hudTiltVal = document.getElementById('hudTiltVal');
   const hudPan = document.getElementById('hudPan');
-  const hudPanVal = document.getElementById('hudPanVal');
   const hudLateral = document.getElementById('hudLateral');
-  const hudLateralVal = document.getElementById('hudLateralVal');
   const hudLensVal = document.getElementById('hudLensVal');
 
+  // Don't stomp a HUD scrub field's own in-progress value while the user is
+  // actively dragging or typing into it.
+  let activeScrubEl = null;
+  function setScrubVal(el, v, decimals){
+    if (document.activeElement === el || activeScrubEl === el) return;
+    el.value = v.toFixed(decimals);
+  }
+
   function syncCamUI(){
-    camHeightInput.value = target.y;
-    camHeightLabel.value = target.y.toFixed(2);
+    setScrubVal(camHeightLabel, target.y, 2);
     const elevDeg = Math.round(90 - phi * 180 / Math.PI);
-    camTiltInput.value = elevDeg;
-    camTiltLabel.value = elevDeg;
+    setScrubVal(camTiltLabel, elevDeg, 0);
     let panDeg = Math.round(theta * 180 / Math.PI) % 360;
     if (panDeg < 0) panDeg += 360;
-    camPanInput.value = panDeg;
-    camPanLabel.value = panDeg;
-    document.getElementById('camLateral').value = camLateral;
-    document.getElementById('camLateralLabel').value = camLateral.toFixed(2);
+    setScrubVal(camPanLabel, panDeg, 0);
+    setScrubVal(document.getElementById('camLateralLabel'), camLateral, 2);
 
-    hudHeight.value = target.y;
-    hudHeightVal.textContent = target.y.toFixed(1) + 'm';
-    hudTilt.value = elevDeg;
-    hudTiltVal.textContent = elevDeg + '°';
-    hudPan.value = panDeg;
-    hudPanVal.textContent = panDeg + '°';
-    hudLateral.value = camLateral;
-    hudLateralVal.textContent = camLateral.toFixed(2) + 'm';
+    setScrubVal(hudHeight, target.y, 2);
+    setScrubVal(hudTilt, elevDeg, 0);
+    setScrubVal(hudPan, panDeg, 0);
+    setScrubVal(hudLateral, camLateral, 2);
     hudLensVal.textContent = Math.round(currentLensMM()) + 'mm';
   }
 
@@ -1464,11 +1443,7 @@
     document.getElementById('handheldIntensityRow').style.display = handheldOn ? 'flex' : 'none';
     document.getElementById('handheldHint').style.display = handheldOn ? 'block' : 'none';
   };
-  bindRangeWithNumber(
-    document.getElementById('handheldIntensity'),
-    document.getElementById('handheldIntensityLabel'),
-    (v) => { handheldIntensity = v; }
-  );
+  makeScrubbable(document.getElementById('handheldIntensityLabel'), 0.01, (v) => { handheldIntensity = v; });
 
   function updateCameraFromSpherical(){
     phi = clampPhi(phi);
@@ -1558,40 +1533,39 @@
 
   updateCameraFromSpherical();
 
-  bindRangeWithNumber(camHeightInput, camHeightLabel, (v) => {
+  makeScrubbable(camHeightLabel, 0.02, (v) => {
     target.y = v;
     updateCameraFromSpherical();
   });
-  bindRangeWithNumber(camTiltInput, camTiltLabel, (elevDeg) => {
+  makeScrubbable(camTiltLabel, 0.5, (elevDeg) => {
     phi = (90 - elevDeg) * Math.PI / 180;
     updateCameraFromSpherical();
-  });
-  bindRangeWithNumber(camPanInput, camPanLabel, (panDeg) => {
+  }, 0);
+  makeScrubbable(camPanLabel, 0.5, (panDeg) => {
     theta = panDeg * Math.PI / 180;
     updateCameraFromSpherical();
-  });
-  bindRangeWithNumber(document.getElementById('camLateral'), document.getElementById('camLateralLabel'), (v) => {
+  }, 0);
+  makeScrubbable(document.getElementById('camLateralLabel'), 0.02, (v) => {
     camLateral = v;
     updateCameraFromSpherical();
   });
 
-  hudHeight.oninput = (e) => {
-    target.y = parseFloat(e.target.value);
+  makeScrubbable(hudHeight, 0.02, (v) => {
+    target.y = v;
     updateCameraFromSpherical();
-  };
-  hudTilt.oninput = (e) => {
-    const elevDeg = parseFloat(e.target.value);
-    phi = (90 - elevDeg) * Math.PI / 180;
+  });
+  makeScrubbable(hudTilt, 0.5, (v) => {
+    phi = (90 - v) * Math.PI / 180;
     updateCameraFromSpherical();
-  };
-  hudPan.oninput = (e) => {
-    theta = parseFloat(e.target.value) * Math.PI / 180;
+  });
+  makeScrubbable(hudPan, 0.5, (v) => {
+    theta = v * Math.PI / 180;
     updateCameraFromSpherical();
-  };
-  hudLateral.oninput = (e) => {
-    camLateral = parseFloat(e.target.value);
+  });
+  makeScrubbable(hudLateral, 0.02, (v) => {
+    camLateral = v;
     updateCameraFromSpherical();
-  };
+  });
   document.getElementById('camHudClose').onclick = () => {
     document.getElementById('camHud').classList.add('hidden');
     document.getElementById('camHudToggle').classList.add('visible');
@@ -1952,13 +1926,13 @@
   function refreshPropLabels(){
     if (!selected || selected === 'camera' || !selected.userData.isProp) return;
     const size = PROP_SIZES[selected.userData.type];
-    document.getElementById('propWidthLabel').value = toUnitValue(size.w * selected.scale.x).toFixed(2);
-    document.getElementById('propDepthLabel').value = toUnitValue(size.d * selected.scale.z).toFixed(2);
-    document.getElementById('propHeightLabel').value = toUnitValue(size.h * selected.scale.y).toFixed(2);
+    setScrubVal(document.getElementById('propWidthLabel'), toUnitValue(size.w * selected.scale.x), 2);
+    setScrubVal(document.getElementById('propDepthLabel'), toUnitValue(size.d * selected.scale.z), 2);
+    setScrubVal(document.getElementById('propHeightLabel'), toUnitValue(size.h * selected.scale.y), 2);
   }
   function refreshCharSizeLabel(){
     if (!selected || selected === 'camera' || !selected.userData.parts) return;
-    document.getElementById('charSizeLabel').value = toUnitValue(selected.userData.baseHeight * selected.scale.x).toFixed(2);
+    setScrubVal(document.getElementById('charSizeLabel'), toUnitValue(selected.userData.baseHeight * selected.scale.x), 2);
   }
   document.getElementById('sizeUnit').onchange = (e) => {
     sizeUnit = e.target.value;
@@ -1974,8 +1948,34 @@
     table:   { w:1.4, h:0.75, d:0.8, color:0x8a6a4a },
     sphere:  { w:1, h:1, d:1, color:0xe0584a },
     cube:    { w:1, h:1, d:1, color:0x5bc9a8 },
-    pyramid: { w:1, h:1, d:1, color:0xd6a24a }
+    pyramid: { w:1, h:1, d:1, color:0xd6a24a },
+    cage:    { w:1, h:1, d:1, color:0xcccccc }
   };
+
+  // A hollow unit box made of 12 edge "bars" instead of a solid volume — for
+  // using as a car/cage frame with characters placed inside it. Real geometry
+  // (cylinders) rather than THREE.Line, same reason as the skeleton bones:
+  // WebGL ignores line width on most platforms.
+  function buildCageGroup(color){
+    const group = new THREE.Group();
+    const mat = new THREE.MeshStandardMaterial({ color, roughness:0.6, flatShading:true });
+    const half = 0.5, thickness = 0.035, pts = [-half, half];
+    const edges = [];
+    for (const y of pts) for (const z of pts) edges.push({ axis:'x', y, z });
+    for (const x of pts) for (const z of pts) edges.push({ axis:'y', x, z });
+    for (const x of pts) for (const y of pts) edges.push({ axis:'z', x, y });
+    const geo = new THREE.CylinderGeometry(thickness, thickness, half*2, 6);
+    edges.forEach(e => {
+      const bar = new THREE.Mesh(geo, mat);
+      bar.castShadow = true;
+      if (e.axis === 'x'){ bar.position.set(0, e.y, e.z); bar.rotation.z = Math.PI/2; }
+      else if (e.axis === 'y'){ bar.position.set(e.x, 0, e.z); }
+      else { bar.position.set(e.x, e.y, 0); bar.rotation.x = Math.PI/2; }
+      group.add(bar);
+    });
+    group.userData.mat = mat;
+    return group;
+  }
 
   // Primitives get a unit-size geometry so the Width/Height/Depth scale
   // sliders (which multiply, starting from 1) map directly to meters.
@@ -1993,10 +1993,16 @@
   function addProp(type, x, z){
     pushUndo();
     const size = PROP_SIZES[type];
-    const mesh = new THREE.Mesh(
-      propGeometry(type, size),
-      new THREE.MeshStandardMaterial({ color: size.color, roughness:0.75 })
-    );
+    let mesh;
+    if (type === 'cage'){
+      mesh = buildCageGroup(size.color);
+    } else {
+      mesh = new THREE.Mesh(
+        propGeometry(type, size),
+        new THREE.MeshStandardMaterial({ color: size.color, roughness:0.75 })
+      );
+      mesh.userData.mat = mesh.material;
+    }
     mesh.castShadow = true; mesh.receiveShadow = true;
     mesh.userData.baseHeight = size.h;
     mesh.userData.heightOffset = 0;
@@ -2023,29 +2029,32 @@
     const propScaleRow = document.getElementById('propScaleRow');
     propScaleRow.style.display = isProp ? 'flex' : 'none';
     if (isProp){
-      document.getElementById('propWidth').value = selected.scale.x;
-      document.getElementById('propDepth').value = selected.scale.z;
-      document.getElementById('propHeight').value = selected.scale.y;
       refreshPropLabels();
     }
     const isRotatable = isChar || isProp;
     const colorRow = document.getElementById('colorRow');
     colorRow.style.display = isRotatable ? 'flex' : 'none';
     if (isRotatable){
-      const mat = isChar ? selected.userData.parts.mat : selected.material;
+      const mat = isChar ? selected.userData.parts.mat : selected.userData.mat;
       document.getElementById('objColor').value = '#' + mat.color.getHexString();
+    }
+    const posXRow = document.getElementById('posXRow');
+    const posZRow = document.getElementById('posZRow');
+    posXRow.style.display = isRotatable ? 'flex' : 'none';
+    posZRow.style.display = isRotatable ? 'flex' : 'none';
+    if (isRotatable){
+      setScrubVal(document.getElementById('objPosXLabel'), selected.position.x, 2);
+      setScrubVal(document.getElementById('objPosZLabel'), selected.position.z, 2);
     }
     const heightRow = document.getElementById('heightRow');
     heightRow.style.display = isRotatable ? 'flex' : 'none';
     if (isRotatable){
       const y = isProp ? (selected.userData.heightOffset || 0) : selected.position.y;
-      document.getElementById('objHeight').value = y;
-      document.getElementById('objHeightLabel').value = y.toFixed(2);
+      setScrubVal(document.getElementById('objHeightLabel'), y, 2);
     }
     const charSizeRow = document.getElementById('charSizeRow');
     charSizeRow.style.display = isChar ? 'flex' : 'none';
     if (isChar){
-      document.getElementById('charSize').value = selected.scale.x;
       refreshCharSizeLabel();
     }
     const rotationRow = document.getElementById('rotationRow');
@@ -2053,18 +2062,15 @@
     if (isRotatable){
       let deg = Math.round(selected.rotation.y * 180 / Math.PI) % 360;
       if (deg < 0) deg += 360;
-      document.getElementById('objRotation').value = deg;
-      document.getElementById('objRotationLabel').value = deg;
+      setScrubVal(document.getElementById('objRotationLabel'), deg, 0);
     }
     const propRotateXZRow = document.getElementById('propRotateXZRow');
     propRotateXZRow.style.display = isProp ? 'flex' : 'none';
     if (isProp){
       let degX = Math.round(selected.rotation.x * 180 / Math.PI);
       let degZ = Math.round(selected.rotation.z * 180 / Math.PI);
-      document.getElementById('objRotationX').value = degX;
-      document.getElementById('objRotationXLabel').value = degX;
-      document.getElementById('objRotationZ').value = degZ;
-      document.getElementById('objRotationZLabel').value = degZ;
+      setScrubVal(document.getElementById('objRotationXLabel'), degX, 0);
+      setScrubVal(document.getElementById('objRotationZLabel'), degZ, 0);
     }
     const jointsRow = document.getElementById('jointsRow');
     jointsRow.style.display = isChar ? 'flex' : 'none';
@@ -2073,6 +2079,7 @@
       JOINT_NAMES.forEach(n => setJointSliderUI(n, j[n]));
     }
     refreshList();
+    refreshTrajectory();
     const selName = !selected ? 'Nothing selected' : selected === 'camera' ? 'Camera' : selected.userData.name;
     document.getElementById('tbSelInfo').textContent = selName;
   }
@@ -2194,7 +2201,7 @@
       item.className = 'char-item' + (mesh === selected ? ' selected' : '') + (multiSelectSet.has(mesh) ? ' multi-selected' : '');
       const dot = document.createElement('div');
       dot.className = 'dot';
-      dot.style.background = '#' + mesh.material.color.getHexString();
+      dot.style.background = '#' + mesh.userData.mat.color.getHexString();
       const label = makeNameLabel(mesh);
       const tag = document.createElement('div');
       tag.className = 'pose-tag';
@@ -2254,77 +2261,49 @@
   document.getElementById('addSphere').onclick = () => addProp('sphere');
   document.getElementById('addCube').onclick = () => addProp('cube');
   document.getElementById('addPyramid').onclick = () => addProp('pyramid');
+  document.getElementById('addCage').onclick = () => addProp('cage');
   document.getElementById('objColor').addEventListener('pointerdown', pushUndo);
   document.getElementById('objColor').oninput = (e) => {
     if (!selected || selected === 'camera' || selected.isCharGroup) return;
-    const mat = selected.userData.parts ? selected.userData.parts.mat : selected.material;
+    const mat = selected.userData.parts ? selected.userData.parts.mat : selected.userData.mat;
     mat.color.set(e.target.value);
     refreshList();
   };
-  // The range gives coarse control over a generous-but-finite span; the
-  // number field takes any value typed (no upper bound) — sizes are
-  // effectively unlimited, just via the keyboard past the slider's range.
-  document.getElementById('propWidth').addEventListener('pointerdown', pushUndo);
-  document.getElementById('propWidthLabel').addEventListener('focus', pushUndo);
-  document.getElementById('propWidth').oninput = (e) => {
+  // Scrubbing/typing happens directly in real-world units (meters/feet/
+  // inches), converted to the internal scale factor — sizes stay effectively
+  // unlimited either way.
+  makeScrubbable(document.getElementById('propWidthLabel'), 0.02, (v) => {
     if (!selected || selected === 'camera' || !selected.userData.isProp) return;
-    selected.scale.x = parseFloat(e.target.value);
-    refreshPropLabels();
-  };
-  document.getElementById('propWidthLabel').oninput = (e) => {
-    if (!selected || selected === 'camera' || !selected.userData.isProp) return;
-    const v = parseFloat(e.target.value);
-    if (isNaN(v) || v <= 0) return;
+    if (v <= 0) return;
     const size = PROP_SIZES[selected.userData.type];
     selected.scale.x = fromUnitValue(v) / size.w;
-    document.getElementById('propWidth').value = selected.scale.x;
-  };
-  document.getElementById('propDepth').addEventListener('pointerdown', pushUndo);
-  document.getElementById('propDepthLabel').addEventListener('focus', pushUndo);
-  document.getElementById('propDepth').oninput = (e) => {
+  });
+  makeScrubbable(document.getElementById('propDepthLabel'), 0.02, (v) => {
     if (!selected || selected === 'camera' || !selected.userData.isProp) return;
-    selected.scale.z = parseFloat(e.target.value);
-    refreshPropLabels();
-  };
-  document.getElementById('propDepthLabel').oninput = (e) => {
-    if (!selected || selected === 'camera' || !selected.userData.isProp) return;
-    const v = parseFloat(e.target.value);
-    if (isNaN(v) || v <= 0) return;
+    if (v <= 0) return;
     const size = PROP_SIZES[selected.userData.type];
     selected.scale.z = fromUnitValue(v) / size.d;
-    document.getElementById('propDepth').value = selected.scale.z;
-  };
-  document.getElementById('propHeight').addEventListener('pointerdown', pushUndo);
-  document.getElementById('propHeightLabel').addEventListener('focus', pushUndo);
-  document.getElementById('propHeight').oninput = (e) => {
+  });
+  makeScrubbable(document.getElementById('propHeightLabel'), 0.02, (v) => {
     if (!selected || selected === 'camera' || !selected.userData.isProp) return;
-    const s = parseFloat(e.target.value);
-    selected.scale.y = s;
-    updatePropY(selected);
-    refreshPropLabels();
-  };
-  document.getElementById('propHeightLabel').oninput = (e) => {
-    if (!selected || selected === 'camera' || !selected.userData.isProp) return;
-    const v = parseFloat(e.target.value);
-    if (isNaN(v) || v <= 0) return;
+    if (v <= 0) return;
     const size = PROP_SIZES[selected.userData.type];
     selected.scale.y = fromUnitValue(v) / size.h;
-    document.getElementById('propHeight').value = selected.scale.y;
     updatePropY(selected);
-  };
-  bindRangeWithNumber(document.getElementById('objRotation'), document.getElementById('objRotationLabel'), (deg) => {
+  });
+  makeScrubbable(document.getElementById('objRotationLabel'), 0.5, (deg) => {
     if (!selected || selected === 'camera' || selected.isCharGroup) return;
     selected.rotation.y = deg * Math.PI / 180;
-  });
-  bindRangeWithNumber(document.getElementById('objRotationX'), document.getElementById('objRotationXLabel'), (deg) => {
+  }, 0);
+  makeScrubbable(document.getElementById('objRotationXLabel'), 0.5, (deg) => {
     if (!selected || selected === 'camera' || !selected.userData.isProp) return;
     selected.rotation.x = deg * Math.PI / 180;
-  });
-  bindRangeWithNumber(document.getElementById('objRotationZ'), document.getElementById('objRotationZLabel'), (deg) => {
+  }, 0);
+  makeScrubbable(document.getElementById('objRotationZLabel'), 0.5, (deg) => {
     if (!selected || selected === 'camera' || !selected.userData.isProp) return;
     selected.rotation.z = deg * Math.PI / 180;
-  });
-  bindRangeWithNumber(document.getElementById('objHeight'), document.getElementById('objHeightLabel'), (val) => {
+  }, 0);
+  makeScrubbable(document.getElementById('objHeightLabel'), 0.02, (val) => {
     if (!selected || selected === 'camera' || selected.isCharGroup) return;
     if (selected.userData.isProp){
       selected.userData.heightOffset = val;
@@ -2333,7 +2312,15 @@
       selected.position.y = val;
     }
   });
-  bindRangeWithNumber(document.getElementById('charSize'), document.getElementById('charSizeLabel'), (val) => {
+  makeScrubbable(document.getElementById('objPosXLabel'), 0.02, (val) => {
+    if (!selected || selected === 'camera' || selected.isCharGroup) return;
+    selected.position.x = val;
+  });
+  makeScrubbable(document.getElementById('objPosZLabel'), 0.02, (val) => {
+    if (!selected || selected === 'camera' || selected.isCharGroup) return;
+    selected.position.z = val;
+  });
+  makeScrubbable(document.getElementById('charSizeLabel'), 0.005, (val) => {
     if (!selected || selected === 'camera' || selected.isCharGroup || !selected.userData.parts) return;
     if (val <= 0) return;
     selected.scale.setScalar(val);
@@ -2347,39 +2334,64 @@
     select(selected); // re-syncs the joint sliders, since the sit/stand presets change them
   };
 
-  // Pairs a <input type="range"> with an editable <input type="number"> so
-  // values can be dragged OR typed — dragging updates the number box, typing
-  // updates the slider, both call the same apply callback either way.
-  function bindRangeWithNumber(rangeEl, numberEl, onApply){
-    rangeEl.addEventListener('pointerdown', pushUndo);
-    numberEl.addEventListener('focus', pushUndo);
-    rangeEl.oninput = (e) => {
+
+  // A number field that can also be click-dragged sideways to change its
+  // value with no track and no min/max — for HUD fields like camera Lateral
+  // that are genuinely unbounded in either direction, where a slider always
+  // eventually runs out of travel. Click (no real movement) still focuses
+  // the field normally for typing an exact value.
+  function makeScrubbable(el, sensitivity, onChange, decimals){
+    if (decimals === undefined) decimals = 2;
+    let startX = 0, startVal = 0, dragging = false;
+    // Window-level listeners bound only while a drag is in progress, rather
+    // than relying on setPointerCapture — capture proved flaky in practice
+    // (a drag on one scrub field could leave the next field's own drag
+    // unable to receive pointermove at all until reloaded).
+    function onMove(e){
+      const dx = e.clientX - startX;
+      if (!dragging && Math.abs(dx) < 3) return;
+      if (!dragging){
+        dragging = true;
+        activeScrubEl = el;
+        pushUndo();
+        el.blur();
+      }
+      const v = startVal + dx * sensitivity;
+      el.value = v.toFixed(decimals);
+      onChange(v);
+    }
+    function onUp(){
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      dragging = false;
+      activeScrubEl = null;
+    }
+    el.addEventListener('pointerdown', (e) => {
+      startX = e.clientX;
+      startVal = parseFloat(el.value) || 0;
+      dragging = false;
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+    });
+    el.addEventListener('focus', pushUndo);
+    el.addEventListener('input', (e) => {
       const v = parseFloat(e.target.value);
       if (isNaN(v)) return;
-      numberEl.value = v;
-      onApply(v);
-    };
-    numberEl.oninput = (e) => {
-      const v = parseFloat(e.target.value);
-      if (isNaN(v)) return;
-      rangeEl.value = v;
-      onApply(v);
-    };
+      onChange(v);
+    });
   }
 
   function jointSliderId(name){ return 'joint' + name[0].toUpperCase() + name.slice(1); }
   function setJointSliderUI(name, deg){
     const id = jointSliderId(name);
-    document.getElementById(id).value = deg;
-    document.getElementById(id + 'Label').value = Math.round(deg);
+    setScrubVal(document.getElementById(id + 'Label'), deg, 0);
   }
   JOINT_NAMES.forEach(name => {
-    const el = document.getElementById(jointSliderId(name));
     const numEl = document.getElementById(jointSliderId(name) + 'Label');
-    bindRangeWithNumber(el, numEl, (deg) => {
+    makeScrubbable(numEl, 0.5, (deg) => {
       if (!selected || selected === 'camera' || !selected.userData.parts) return;
       setJoint(selected, name, deg);
-    });
+    }, 0);
   });
   document.getElementById('delChar').onclick = () => {
     if (!selected || selected === 'camera') return;
@@ -2502,6 +2514,15 @@
     }
   }
 
+  // Keeps the X/Z number fields live while dragging with the mouse, so a
+  // rough drag can be fine-tuned by eye and then finished off with an exact
+  // typed value instead of fighting the cursor for the last few centimeters.
+  function refreshPosFields(){
+    if (!selected || selected === 'camera' || selected.isCharGroup) return;
+    setScrubVal(document.getElementById('objPosXLabel'), selected.position.x, 2);
+    setScrubVal(document.getElementById('objPosZLabel'), selected.position.z, 2);
+  }
+
   function setMouseAt(e, canvasEl){
     const rect = canvasEl.getBoundingClientRect();
     mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
@@ -2546,15 +2567,21 @@
   }
 
   // ---------- Top-down view pointer interaction ----------
-  let topMode = null; // 'drag' | 'pan' | 'camDrag' | 'drawPath'
+  let topMode = null; // 'drag' | 'pan' | 'camDrag' | 'drawPath' | 'dragKf'
   let topDragObj = null;
   let topDragLastPt = null;
   let topPanAnchor = null; // world point under the cursor when the pan started
+  let topDragKf = null;
   topCanvas.addEventListener('pointerdown', (e)=>{
     const wantsPath = drawingPath || e.shiftKey;
-    const camHit = !wantsPath && pickCamMarker(topCamera, topCanvas, e);
-    const hit = (wantsPath || camHit) ? null : pickAt(topCamera, topCanvas, e);
-    if (camHit){
+    const kfMarker = !wantsPath ? pickTrajectoryMarker(topCamera, topCanvas, e) : null;
+    const camHit = !wantsPath && !kfMarker && pickCamMarker(topCamera, topCanvas, e);
+    const hit = (wantsPath || kfMarker || camHit) ? null : pickAt(topCamera, topCanvas, e);
+    if (kfMarker){
+      pushUndo();
+      topMode = 'dragKf';
+      topDragKf = kfMarker.userData.kf;
+    } else if (camHit){
       pushUndo();
       select('camera');
       topMode = 'camDrag';
@@ -2583,7 +2610,13 @@
     topCanvas.classList.add('dragging');
   });
   topCanvas.addEventListener('pointermove', (e)=>{
-    if (topMode === 'camDrag'){
+    if (topMode === 'dragKf' && topDragKf){
+      const pt = floorPointAt(topCamera, topCanvas, e);
+      topDragKf.x = pt.x;
+      topDragKf.z = pt.z;
+      refreshTrajectory();
+      setCurrentTime(currentTime);
+    } else if (topMode === 'camDrag'){
       const pt = floorPointAt(topCamera, topCanvas, e);
       target.x += pt.x - camera.position.x;
       target.z += pt.z - camera.position.z;
@@ -2592,6 +2625,7 @@
       const pt = floorPointAt(topCamera, topCanvas, e);
       applyDragMove(topDragObj, pt, topDragLastPt);
       topDragLastPt = pt;
+      refreshPosFields();
     } else if (topMode === 'pan' && topPanAnchor){
       const pt = floorPointAt(topCamera, topCanvas, e);
       topTarget.x -= (pt.x - topPanAnchor.x);
@@ -2608,16 +2642,26 @@
   });
   function endTopDrag(){
     topCanvas.classList.remove('dragging');
-    topMode = null; topDragObj = null; topDragLastPt = null; topPanAnchor = null;
+    topMode = null; topDragObj = null; topDragLastPt = null; topPanAnchor = null; topDragKf = null;
   }
   topCanvas.addEventListener('pointerup', endTopDrag);
   topCanvas.addEventListener('pointerleave', endTopDrag);
 
+  let dragKf = null;
   canvas.addEventListener('pointerdown', (e)=>{
     downX = e.clientX; downY = e.clientY;
     lastX = e.clientX; lastY = e.clientY;
     if (e.button === 2){ mode = 'pan'; e.preventDefault(); return; }
     const wantsPath = drawingPath || e.shiftKey;
+    const kfMarker = !wantsPath ? pickTrajectoryMarker(camera, canvas, e) : null;
+    if (kfMarker){
+      pushUndo();
+      mode = 'dragKf';
+      dragKf = kfMarker.userData.kf;
+      canvas.setPointerCapture(e.pointerId);
+      canvas.classList.add('dragging');
+      return;
+    }
     const hit = wantsPath ? null : pickCharacter(e);
     if (hit){
       select(hit);
@@ -2663,6 +2707,13 @@
       const pt = floorPoint(e);
       applyDragMove(dragChar, pt, dragLastPt);
       dragLastPt = pt;
+      refreshPosFields();
+    } else if (mode === 'dragKf' && dragKf){
+      const pt = floorPoint(e);
+      dragKf.x = pt.x;
+      dragKf.z = pt.z;
+      refreshTrajectory();
+      setCurrentTime(currentTime);
     } else if (mode === 'drawPath'){
       const pt = floorPoint(e);
       const last = pathPoints[pathPoints.length - 1];
@@ -2683,7 +2734,7 @@
         select(null);
       }
     }
-    mode = null; dragChar = null; dragLastPt = null;
+    mode = null; dragChar = null; dragLastPt = null; dragKf = null;
   }
   canvas.addEventListener('pointerup', endDrag);
   canvas.addEventListener('pointerleave', endDrag);
@@ -2716,10 +2767,12 @@
       // onto every member's own track at once, using each member's current pose.
       obj.members.forEach(m => addKeyframeNoUndo(m, t));
       refreshList();
+      refreshTrajectory();
       return;
     }
     addKeyframeNoUndo(obj, t);
     refreshList();
+    refreshTrajectory();
   }
 
   function addKeyframeNoUndo(obj, t){
@@ -2746,12 +2799,14 @@
       pushUndo();
       obj.members.forEach(m => removeNearestKeyframeNoUndo(m, t));
       refreshList();
+      refreshTrajectory();
       return;
     }
     if (!getKeyframes(obj).length) return;
     pushUndo();
     removeNearestKeyframeNoUndo(obj, t);
     refreshList();
+    refreshTrajectory();
   }
 
   function removeNearestKeyframeNoUndo(obj, t){
@@ -2787,24 +2842,37 @@
     };
   }
 
-  // The tangent at any interior keyframe is the average slope through its
-  // neighbours (a central difference) — this is what makes the curve pass
-  // through with continuous velocity, not decelerate-then-reaccelerate. The
-  // true first/last keyframe of the whole track gets a zero tangent instead,
-  // so the move still eases in/out of rest at the very start and end. Works
-  // for any keyframe count, including exactly 3 (the case a 4-point Catmull-
-  // Rom segment can't handle, since it has no "outer" neighbour to borrow).
+  // The tangent (velocity) at any interior keyframe is the average of the
+  // slopes into and out of it, each measured per unit TIME (not just per
+  // keyframe-index) — this is what makes the curve pass through with
+  // continuous velocity instead of decelerate-then-reaccelerate. Without the
+  // per-segment time scaling, keyframes that aren't evenly spaced in time
+  // (the norm once there are more than a couple) get a tangent sized for the
+  // wrong segment duration, which reads as the motion nearly stopping at
+  // some points and overshooting at others. The true first/last keyframe of
+  // the whole track gets a zero tangent instead, so the move still eases
+  // in/out of rest at the very start and end. Works for any keyframe count,
+  // including exactly 3 (the case a 4-point Catmull-Rom segment can't
+  // handle, since it has no "outer" neighbour to borrow).
   function hermiteTangent(kfs, i, field){
     if (i === 0 || i === kfs.length - 1) return 0;
-    return (kfs[i+1][field] - kfs[i-1][field]) / 2;
+    const dtPrev = kfs[i].t - kfs[i-1].t || 1e-6;
+    const dtNext = kfs[i+1].t - kfs[i].t || 1e-6;
+    const slopePrev = (kfs[i][field] - kfs[i-1][field]) / dtPrev;
+    const slopeNext = (kfs[i+1][field] - kfs[i][field]) / dtNext;
+    return (slopePrev + slopeNext) / 2; // value per unit time
   }
 
   // Interpolates one numeric field of a keyframe list across a found segment.
   function interpKfField(kfs, seg, field){
     if (seg.a === seg.b) return seg.a[field];
     const p1 = seg.a[field], p2 = seg.b[field];
-    const m1 = hermiteTangent(kfs, seg.i, field);
-    const m2 = hermiteTangent(kfs, seg.i + 1, field);
+    const dt = seg.b.t - seg.a.t || 1e-6;
+    // Hermite basis assumes tangents expressed per unit u (the segment's own
+    // [0,1] span), so the per-time tangent above must be scaled by this
+    // segment's actual duration.
+    const m1 = hermiteTangent(kfs, seg.i, field) * dt;
+    const m2 = hermiteTangent(kfs, seg.i + 1, field) * dt;
     const { h00, h10, h01, h11 } = hermiteBasis(seg.u);
     return h00*p1 + h10*m1 + h01*p2 + h11*m2;
   }
@@ -2869,6 +2937,121 @@
     updateCameraFromSpherical();
   }
 
+  // ---------- Keyframe trajectory (selected object's animated path) ----------
+  // Shows the actual curve the Hermite interpolation produces between a
+  // track's position keyframes, plus a draggable marker at each keyframe so
+  // the path can be reshaped without scrubbing to that exact time first.
+  // Camera trajectories are shown too (handy since it's the most commonly
+  // animated thing) but read-only for now — a camera keyframe stores
+  // radius/theta/phi/target rather than a world position, and solving that
+  // back out from a dragged world point (with the lateral-truck offset
+  // folded in) isn't a plain inverse, unlike characters/props.
+  let trajectoryLine = null;
+  let trajectoryMarkers = null;
+  const trajectoryMarkerGeo = new THREE.SphereGeometry(0.075, 10, 10);
+  // A larger, invisible pick target layered on each visible marker — clicking
+  // a small sphere precisely from a zoomed-out top view is otherwise nearly
+  // impossible. Raycasting doesn't check object.visible, so this works fine
+  // hidden.
+  const trajectoryHitGeo = new THREE.SphereGeometry(0.18, 6, 6);
+  const trajectoryHitMat = new THREE.MeshBasicMaterial();
+
+  function cameraWorldPosAt(kfs, seg){
+    const r = interpKfField(kfs, seg, 'radius');
+    const th = interpKfField(kfs, seg, 'theta');
+    const ph = interpKfField(kfs, seg, 'phi');
+    const tx = interpKfField(kfs, seg, 'tx');
+    const ty = interpKfField(kfs, seg, 'ty');
+    const tz = interpKfField(kfs, seg, 'tz');
+    const rightX = Math.cos(th), rightZ = -Math.sin(th);
+    const lookX = tx + rightX * camLateral, lookZ = tz + rightZ * camLateral;
+    return new THREE.Vector3(
+      lookX + r * Math.sin(ph) * Math.sin(th),
+      ty + r * Math.cos(ph),
+      lookZ + r * Math.sin(ph) * Math.cos(th)
+    );
+  }
+
+  function trajectoryPosAt(obj, kfs, t){
+    const seg = findKfSegment(kfs, t);
+    if (obj === 'camera') return cameraWorldPosAt(kfs, seg);
+    const x = interpKfField(kfs, seg, 'x');
+    const z = interpKfField(kfs, seg, 'z');
+    const y = (typeof seg.a.y === 'number' && typeof seg.b.y === 'number') ? interpKfField(kfs, seg, 'y') : obj.position.y;
+    return new THREE.Vector3(x, y, z);
+  }
+
+  function refreshTrajectory(){
+    if (trajectoryLine){ scene.remove(trajectoryLine); trajectoryLine.geometry.dispose(); trajectoryLine.material.dispose(); trajectoryLine = null; }
+    if (trajectoryMarkers){ scene.remove(trajectoryMarkers); trajectoryMarkers = null; }
+    if (!selected || selected === null || selected.isCharGroup) return;
+    const kfs = getKeyframes(selected);
+    if (kfs.length < 2) return;
+    const colorNum = selected === 'camera' ? 0xe8e6e1
+      : (selected.userData.parts ? selected.userData.parts.mat.color.getHex() : selected.userData.mat.color.getHex());
+
+    const tMin = kfs[0].t, tMax = kfs[kfs.length - 1].t;
+    const STEPS = 48;
+    const pts = [];
+    for (let i = 0; i <= STEPS; i++){
+      pts.push(trajectoryPosAt(selected, kfs, tMin + (tMax - tMin) * (i / STEPS)));
+    }
+    // A real tube instead of THREE.Line — WebGL ignores LineBasicMaterial's
+    // linewidth on most platforms (same reason the skeleton bones and lock
+    // icon use actual geometry), so a plain line here would stay hairline-thin
+    // no matter what width is requested.
+    // Normal depth testing (not disabled) — so the tube tucks behind a
+    // character/object exactly like any other scene geometry, reading as
+    // actually threading through it instead of floating on top of it.
+    const spread = pts.reduce((max, p) => Math.max(max, p.distanceTo(pts[0])), 0);
+    if (spread > 1e-4){
+      const curve = new THREE.CatmullRomCurve3(pts);
+      const tubeGeo = new THREE.TubeGeometry(curve, STEPS, 0.04, 8, false);
+      trajectoryLine = new THREE.Mesh(tubeGeo, new THREE.MeshBasicMaterial({ color: colorNum }));
+      scene.add(trajectoryLine);
+    }
+
+    // Markers get a fixed, high-contrast color (not the object's own color)
+    // so they always stand out against the line and the object itself —
+    // plus a bigger invisible "hitbox" sphere layered on top of the small
+    // visible dot, since precisely clicking a small sphere from a zoomed-out
+    // top view is otherwise nearly impossible.
+    trajectoryMarkers = new THREE.Group();
+    const markerMat = new THREE.MeshBasicMaterial({ color: 0xffcc00 });
+    kfs.forEach(kf => {
+      const p = trajectoryPosAt(selected, kfs, kf.t);
+      const m = new THREE.Mesh(trajectoryMarkerGeo, markerMat);
+      m.position.copy(p);
+      trajectoryMarkers.add(m);
+
+      const hit = new THREE.Mesh(trajectoryHitGeo, trajectoryHitMat);
+      hit.position.copy(p);
+      hit.userData.kf = kf;
+      hit.visible = false; // raycasting ignores .visible, so this stays pickable while invisible
+      trajectoryMarkers.add(hit);
+    });
+    scene.add(trajectoryMarkers);
+  }
+
+  function setTrajectoryVisible(visible){
+    if (trajectoryLine) trajectoryLine.visible = visible;
+    if (trajectoryMarkers) trajectoryMarkers.visible = visible;
+  }
+
+  // Only characters/props have their marker made pickable+draggable (see
+  // refreshTrajectory) — the camera's markers exist for the line's sake but
+  // this raycast simply won't find a hit worth entertaining for it since we
+  // never call it while selected === 'camera' from the drag handlers below.
+  function pickTrajectoryMarker(cam, canvasEl, e){
+    if (!trajectoryMarkers || selected === 'camera') return null;
+    setMouseAt(e, canvasEl);
+    raycaster.setFromCamera(mouse, cam);
+    // No layer restriction needed — the object list passed in is already
+    // scoped to just this group's own markers.
+    const hits = raycaster.intersectObjects(trajectoryMarkers.children);
+    return hits.length ? hits[0].object : null;
+  }
+
   let cameraDriveMode = 'keyframes'; // 'keyframes' | 'path'
 
   function setCurrentTime(t){
@@ -2891,7 +3074,7 @@
 
     const tracks = [{ obj: 'camera', name: 'Camera', kfs: cameraKeyframes, color: '#e8e6e1' }]
       .concat(characters.map(root => ({ obj: root, name: root.userData.name, kfs: root.userData.keyframes || [], color: '#' + root.userData.parts.mat.color.getHexString() })))
-      .concat(objects.map(mesh => ({ obj: mesh, name: mesh.userData.name, kfs: mesh.userData.keyframes || [], color: '#' + mesh.material.color.getHexString() })));
+      .concat(objects.map(mesh => ({ obj: mesh, name: mesh.userData.name, kfs: mesh.userData.keyframes || [], color: '#' + mesh.userData.mat.color.getHexString() })));
 
     tracks.forEach(track => {
       const rowLabel = document.createElement('div');
@@ -2934,6 +3117,7 @@
           k.t = Math.max(0, Math.min(timelineDuration, dragStartT + dFrac * timelineDuration));
           mark.style.left = (timelineDuration > 0 ? (k.t / timelineDuration * 100) : 0) + '%';
           setCurrentTime(currentTime);
+          if (selected === track.obj) refreshTrajectory();
         });
         mark.addEventListener('pointerup', (e) => {
           e.stopPropagation();
@@ -2943,6 +3127,7 @@
             track.kfs.sort((a,b)=>a.t-b.t);
             refreshKeyframePanel();
             setCurrentTime(currentTime);
+            if (selected === track.obj) refreshTrajectory();
           }
         });
         mark.onclick = (e) => {
@@ -3060,6 +3245,27 @@
       }
     } else if (e.code === 'KeyK'){
       if (selected) document.getElementById('tlAddKey').click();
+    } else if (e.code === 'ArrowLeft' || e.code === 'ArrowRight' || e.code === 'ArrowUp' || e.code === 'ArrowDown'){
+      if (!selected) return;
+      e.preventDefault();
+      const step = e.shiftKey ? 1 : 0.1; // Shift = faster, per-press nudge otherwise
+      const sign = (e.code === 'ArrowRight' || e.code === 'ArrowUp') ? 1 : -1;
+      const lateral = (e.code === 'ArrowLeft' || e.code === 'ArrowRight');
+      if (!e.repeat) pushUndo(); // one undo step per hold, not one per repeated keydown
+      if (selected === 'camera'){
+        if (lateral) camLateral += sign * step;
+        else target.y += sign * step;
+        updateCameraFromSpherical();
+      } else if (!selected.userData.locked){
+        if (selected.isCharGroup){
+          const dx = lateral ? sign * step : 0, dz = lateral ? 0 : sign * step;
+          selected.members.forEach(m => { m.position.x += dx; m.position.z += dz; });
+        } else {
+          if (lateral) selected.position.x += sign * step;
+          else selected.position.z += sign * step;
+          refreshPosFields();
+        }
+      }
     }
   });
 
@@ -3155,6 +3361,7 @@
   try { shots = JSON.parse(localStorage.getItem(SHOTS_KEY) || '[]'); } catch(e){ shots = []; }
   let loadedShotIndex = null; // which saved shot (if any) the current scene was loaded from
   let currentShotName = 'blocking'; // used to name image/video exports
+  let shotDirty = false; // true once the scene has changed since the loaded shot was saved/updated
 
   function persistShots(){
     try { localStorage.setItem(SHOTS_KEY, JSON.stringify(shots)); } catch(e){}
@@ -3191,7 +3398,7 @@
         rotY: mesh.rotation.y, rotX: mesh.rotation.x, rotZ: mesh.rotation.z,
         scaleW: mesh.scale.x, scaleH: mesh.scale.y, scaleD: mesh.scale.z,
         heightY: mesh.userData.heightOffset || 0,
-        color: mesh.material.color.getHex(),
+        color: mesh.userData.mat.color.getHex(),
         keyframes: (mesh.userData.keyframes || []).map(k => ({...k}))
       }))
     };
@@ -3206,6 +3413,14 @@
     if (suppressUndo) return;
     undoStack.push(captureShot('__undo__'));
     if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+    // refreshShotList() is normally only called from shot-specific actions
+    // (save/update/load/delete) — a generic edit elsewhere in the app would
+    // flip shotDirty to true without ever re-rendering the list, so the dot
+    // stayed stuck on green. Only worth a redraw on the false->true edge.
+    if (!shotDirty){
+      shotDirty = true;
+      refreshShotList();
+    }
   }
 
   function undo(){
@@ -3214,6 +3429,8 @@
     suppressUndo = true;
     loadShot(prev);
     suppressUndo = false;
+    shotDirty = true;
+    refreshShotList();
   }
 
   function clearSceneObjects(){
@@ -3237,6 +3454,7 @@
 
     loadedShotIndex = null;
     currentShotName = 'blocking';
+    shotDirty = false;
     updateShotBtnState();
 
     clearSceneObjects();
@@ -3265,7 +3483,6 @@
     document.getElementById('handheldLabel').style.display = 'none';
     document.getElementById('handheldIntensityRow').style.display = 'none';
     document.getElementById('handheldHint').style.display = 'none';
-    document.getElementById('handheldIntensity').value = handheldIntensity;
     document.getElementById('handheldIntensityLabel').value = handheldIntensity.toFixed(2);
 
     frameAspect = null;
@@ -3277,9 +3494,7 @@
     resize();
 
     sunAzimuth = 40; sunElevation = 52;
-    document.getElementById('sunAzimuth').value = sunAzimuth;
     document.getElementById('sunAzimuthLabel').value = sunAzimuth;
-    document.getElementById('sunElevation').value = sunElevation;
     document.getElementById('sunElevationLabel').value = sunElevation;
     updateSunPosition();
 
@@ -3289,6 +3504,7 @@
 
     suppressUndo = false;
     refreshKeyframePanel();
+    refreshShotList();
   }
 
   function loadShot(shot){
@@ -3317,7 +3533,6 @@
     document.getElementById('handheldLabel').style.display = handheldOn ? 'block' : 'none';
     document.getElementById('handheldIntensityRow').style.display = handheldOn ? 'flex' : 'none';
     document.getElementById('handheldHint').style.display = handheldOn ? 'block' : 'none';
-    document.getElementById('handheldIntensity').value = handheldIntensity;
     document.getElementById('handheldIntensityLabel').value = handheldIntensity.toFixed(2);
     target.set(shot.camera.target.x, shot.camera.target.y, shot.camera.target.z);
     cameraKeyframes = shot.camera.keyframes.map(k => ({...k}));
@@ -3338,10 +3553,8 @@
 
     sunAzimuth = typeof shot.sunAzimuth === 'number' ? shot.sunAzimuth : 40;
     sunElevation = typeof shot.sunElevation === 'number' ? shot.sunElevation : 52;
-    document.getElementById('sunAzimuth').value = sunAzimuth;
-    document.getElementById('sunAzimuthLabel').value = sunAzimuth;
-    document.getElementById('sunElevation').value = sunElevation;
-    document.getElementById('sunElevationLabel').value = sunElevation;
+    setScrubVal(document.getElementById('sunAzimuthLabel'), sunAzimuth, 0);
+    setScrubVal(document.getElementById('sunElevationLabel'), sunElevation, 0);
     updateSunPosition();
 
     pathPoints = shot.path.points.map(p => ({...p}));
@@ -3378,7 +3591,7 @@
       if (typeof o.rotY === 'number') mesh.rotation.y = o.rotY;
       if (typeof o.rotX === 'number') mesh.rotation.x = o.rotX;
       if (typeof o.rotZ === 'number') mesh.rotation.z = o.rotZ;
-      if (typeof o.color === 'number') mesh.material.color.setHex(o.color);
+      if (typeof o.color === 'number') mesh.userData.mat.color.setHex(o.color);
     });
 
     select(null);
@@ -3392,6 +3605,13 @@
     shots.forEach((shot, i) => {
       const item = document.createElement('div');
       item.className = 'char-item' + (loadedShotIndex === i ? ' selected' : '');
+      if (loadedShotIndex === i){
+        const dot = document.createElement('div');
+        dot.className = 'dot';
+        dot.title = shotDirty ? 'Unsaved changes — click Update shot' : 'Up to date with the saved shot';
+        dot.style.background = shotDirty ? '#ff3b30' : '#34c759';
+        item.appendChild(dot);
+      }
       const label = document.createElement('div');
       label.className = 'label';
       label.textContent = shot.name;
@@ -3413,6 +3633,7 @@
         loadShot(shot);
         loadedShotIndex = i;
         currentShotName = shot.name;
+        shotDirty = false;
         refreshShotList();
         updateShotBtnState();
       };
@@ -3432,6 +3653,7 @@
     shots.push(captureShot(finalName));
     loadedShotIndex = shots.length - 1;
     currentShotName = finalName;
+    shotDirty = false;
     persistShots();
     refreshShotList();
     updateShotBtnState();
@@ -3439,6 +3661,7 @@
   document.getElementById('updateShot').onclick = () => {
     if (loadedShotIndex === null) return;
     shots[loadedShotIndex] = captureShot(shots[loadedShotIndex].name);
+    shotDirty = false;
     persistShots();
     refreshShotList();
   };
@@ -3677,10 +3900,12 @@
     selectionMarker.visible = false;
     selectionRing.visible = false;
     lockIconSprites.forEach(spr => { spr.visible = false; });
+    setTrajectoryVisible(false);
     fn();
     selectionMarker.visible = prevMarker;
     selectionRing.visible = prevRing;
     lockIconSprites.forEach(spr => { spr.visible = true; });
+    setTrajectoryVisible(true);
   }
 
   // A filesystem-safe stem for exported files, from the loaded/saved shot's
@@ -3749,6 +3974,7 @@
     selectionMarker.visible = false;
     selectionRing.visible = false;
     lockIconSprites.forEach(spr => { spr.visible = false; });
+    setTrajectoryVisible(false);
     const charStates = characters.map(root => {
       const prev = { bodyTilt: root.userData.parts.bodyTilt.visible, rig: root.userData.skeleton.rig.visible };
       root.userData.parts.bodyTilt.visible = true;
@@ -3776,6 +4002,7 @@
     selectionMarker.visible = prevSelMarker;
     selectionRing.visible = prevSelRing;
     lockIconSprites.forEach(spr => { spr.visible = true; });
+    setTrajectoryVisible(true);
     characters.forEach((root, i) => {
       root.userData.parts.bodyTilt.visible = charStates[i].bodyTilt;
       root.userData.skeleton.rig.visible = charStates[i].rig;
@@ -3817,14 +4044,8 @@
     depthNearInput.disabled = depthRangeAuto;
     depthFarInput.disabled = depthRangeAuto;
   };
-  document.getElementById('depthNear').oninput = (e) => {
-    depthNearManual = parseFloat(e.target.value);
-    document.getElementById('depthNearLabel').textContent = depthNearManual.toFixed(2) + 'm';
-  };
-  document.getElementById('depthFar').oninput = (e) => {
-    depthFarManual = parseFloat(e.target.value);
-    document.getElementById('depthFarLabel').textContent = depthFarManual.toFixed(1) + 'm';
-  };
+  makeScrubbable(depthNearInput, 0.02, (v) => { depthNearManual = v; });
+  makeScrubbable(depthFarInput, 0.05, (v) => { depthFarManual = v; }, 1);
 
   // ---------- Render loop ----------
   resize();
@@ -3840,9 +4061,11 @@
       selectionMarker.visible = false;
       selectionRing.visible = false;
       lockIconSprites.forEach(spr => { spr.visible = false; });
+      setTrajectoryVisible(false);
     } else {
       updateSelectionIndicators();
       updateLockIcons();
+      setTrajectoryVisible(true);
     }
     applyHandheldShake(currentTime);
     renderer.setScissorTest(false);
