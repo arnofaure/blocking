@@ -411,7 +411,7 @@
   #kfToolbar button { width:auto; margin-bottom:0; padding:5px 10px; }
   #kfBody { flex:1; min-height:0; display:flex; flex-direction:row; }
   #kfLabels {
-    width:110px; flex-shrink:0; border-right:0.5px solid var(--panel-border);
+    width:168px; flex-shrink:0; border-right:0.5px solid var(--panel-border);
     display:flex; flex-direction:column; overflow-y:auto;
   }
   #kfLabels .kf-row-label.header { height:22px; flex-shrink:0; }
@@ -466,6 +466,11 @@
     border:0.5px solid var(--panel-border);
   }
   .kf-add-field-btn:hover { color: var(--text); border-color: var(--text); }
+  .kf-sub-value {
+    flex-shrink:0; width:56px; padding:1px 4px; font-size:10.5px; text-align:right;
+    margin:0; cursor:ew-resize;
+  }
+  .kf-sub-value:focus { cursor:text; }
   #kfPlayhead {
     position:absolute; top:0; bottom:0; width:1.5px; background: var(--danger);
     pointer-events:none; z-index:3;
@@ -663,36 +668,6 @@
       <span class="label-sm">Color</span>
       <input type="color" id="objColor" value="#d98e4a" style="flex:1; height:28px; padding:2px; cursor:pointer;">
     </div>
-    <div class="row align" id="posXRow" style="margin-top:8px; display:none">
-      <span class="label-sm">X</span>
-      <input type="number" class="val-input" id="objPosXLabel" step="0.05" value="0.00">
-    </div>
-    <div class="row align" id="posZRow" style="margin-top:8px; display:none">
-      <span class="label-sm">Z</span>
-      <input type="number" class="val-input" id="objPosZLabel" step="0.05" value="0.00">
-    </div>
-    <div class="row align" id="heightRow" style="margin-top:8px; display:none">
-      <span class="label-sm">Height</span>
-      <input type="number" class="val-input" id="objHeightLabel" min="-2" max="5" step="0.05" value="0">
-    </div>
-    <div class="row align" id="charSizeRow" style="margin-top:8px; display:none">
-      <span class="label-sm">Size</span>
-      <input type="number" class="val-input" id="charSizeLabel" min="0.05" step="0.01" value="1.00">
-    </div>
-    <div class="row align" id="rotationRow" style="margin-top:8px; display:none">
-      <span class="label-sm">Rotate Y</span>
-      <input type="number" class="val-input" id="objRotationLabel" min="0" max="360" step="1" value="0">
-    </div>
-    <div class="row align" id="propRotateXZRow" style="margin-top:8px; display:none; flex-direction:column; align-items:stretch; gap:6px">
-      <div class="row align">
-        <span class="label-sm">Rotate X</span>
-        <input type="number" class="val-input" id="objRotationXLabel" min="-180" max="180" step="1" value="0">
-      </div>
-      <div class="row align">
-        <span class="label-sm">Rotate Z</span>
-        <input type="number" class="val-input" id="objRotationZLabel" min="-180" max="180" step="1" value="0">
-      </div>
-    </div>
     <div class="row align" id="jointsRow" style="margin-top:8px; display:none; flex-direction:column; align-items:stretch; gap:6px">
       <div class="row align">
         <span class="label-sm">Shoulder L</span>
@@ -737,20 +712,6 @@
       <div class="row align">
         <span class="label-sm">Head</span>
         <input type="number" class="val-input" id="jointNeckLabel" min="-60" max="60" step="1" value="0">
-      </div>
-    </div>
-    <div class="row align" id="propScaleRow" style="margin-top:8px; display:none; flex-direction:column; align-items:stretch; gap:6px">
-      <div class="row align">
-        <span class="label-sm">Width</span>
-        <input type="number" class="val-input" id="propWidthLabel" min="0.01" step="0.05" value="1.00">
-      </div>
-      <div class="row align">
-        <span class="label-sm">Depth</span>
-        <input type="number" class="val-input" id="propDepthLabel" min="0.01" step="0.05" value="1.00">
-      </div>
-      <div class="row align">
-        <span class="label-sm">Height</span>
-        <input type="number" class="val-input" id="propHeightLabel" min="0.01" step="0.05" value="1.00">
       </div>
     </div>
   </section>
@@ -2150,21 +2111,9 @@
     if (sizeUnit === 'in') return v / 39.3701;
     return v;
   }
-  function refreshPropLabels(){
-    if (!selected || selected === 'camera' || !selected.userData.isProp) return;
-    const size = PROP_SIZES[selected.userData.type];
-    setScrubVal(document.getElementById('propWidthLabel'), toUnitValue(size.w * selected.scale.x), 2);
-    setScrubVal(document.getElementById('propDepthLabel'), toUnitValue(size.d * selected.scale.z), 2);
-    setScrubVal(document.getElementById('propHeightLabel'), toUnitValue(size.h * selected.scale.y), 2);
-  }
-  function refreshCharSizeLabel(){
-    if (!selected || selected === 'camera' || !selected.userData.parts) return;
-    setScrubVal(document.getElementById('charSizeLabel'), toUnitValue(selected.userData.baseHeight * selected.scale.x), 2);
-  }
   document.getElementById('sizeUnit').onchange = (e) => {
     sizeUnit = e.target.value;
-    refreshPropLabels();
-    refreshCharSizeLabel();
+    refreshKeyframePanel();
   };
 
   const PROP_SIZES = {
@@ -2254,51 +2203,12 @@
     document.getElementById('poseToggle').disabled = !isChar;
     document.getElementById('delChar').disabled = !isDeletable;
     document.getElementById('delChar').textContent = (selected && selected.isCharGroup) ? 'Ungroup' : 'Delete';
-    const propScaleRow = document.getElementById('propScaleRow');
-    propScaleRow.style.display = isProp ? 'flex' : 'none';
-    if (isProp){
-      refreshPropLabels();
-    }
     const isRotatable = isChar || isProp;
     const colorRow = document.getElementById('colorRow');
     colorRow.style.display = isRotatable ? 'flex' : 'none';
     if (isRotatable){
       const mat = isChar ? selected.userData.parts.mat : selected.userData.mat;
       document.getElementById('objColor').value = '#' + mat.color.getHexString();
-    }
-    const posXRow = document.getElementById('posXRow');
-    const posZRow = document.getElementById('posZRow');
-    posXRow.style.display = isRotatable ? 'flex' : 'none';
-    posZRow.style.display = isRotatable ? 'flex' : 'none';
-    if (isRotatable){
-      setScrubVal(document.getElementById('objPosXLabel'), selected.position.x, 2);
-      setScrubVal(document.getElementById('objPosZLabel'), selected.position.z, 2);
-    }
-    const heightRow = document.getElementById('heightRow');
-    heightRow.style.display = isRotatable ? 'flex' : 'none';
-    if (isRotatable){
-      const y = isProp ? (selected.userData.heightOffset || 0) : selected.position.y;
-      setScrubVal(document.getElementById('objHeightLabel'), y, 2);
-    }
-    const charSizeRow = document.getElementById('charSizeRow');
-    charSizeRow.style.display = isChar ? 'flex' : 'none';
-    if (isChar){
-      refreshCharSizeLabel();
-    }
-    const rotationRow = document.getElementById('rotationRow');
-    rotationRow.style.display = isRotatable ? 'flex' : 'none';
-    if (isRotatable){
-      let deg = Math.round(selected.rotation.y * 180 / Math.PI) % 360;
-      if (deg < 0) deg += 360;
-      setScrubVal(document.getElementById('objRotationLabel'), deg, 0);
-    }
-    const propRotateXZRow = document.getElementById('propRotateXZRow');
-    propRotateXZRow.style.display = isProp ? 'flex' : 'none';
-    if (isProp){
-      let degX = Math.round(selected.rotation.x * 180 / Math.PI);
-      let degZ = Math.round(selected.rotation.z * 180 / Math.PI);
-      setScrubVal(document.getElementById('objRotationXLabel'), degX, 0);
-      setScrubVal(document.getElementById('objRotationZLabel'), degZ, 0);
     }
     const jointsRow = document.getElementById('jointsRow');
     jointsRow.style.display = isChar ? 'flex' : 'none';
@@ -2308,6 +2218,7 @@
     }
     refreshList();
     refreshTrajectory();
+    refreshKeyframePanel();
     const selName = !selected ? 'Nothing selected' : selected === 'camera' ? 'Camera' : selected.userData.name;
     document.getElementById('tbSelInfo').textContent = selName;
   }
@@ -2497,72 +2408,9 @@
     mat.color.set(e.target.value);
     refreshList();
   };
-  // Scrubbing/typing happens directly in real-world units (meters/feet/
-  // inches), converted to the internal scale factor — sizes stay effectively
-  // unlimited either way.
-  makeScrubbable(document.getElementById('propWidthLabel'), 0.02, (v) => {
-    if (!selected || selected === 'camera' || !selected.userData.isProp) return;
-    if (v <= 0) return;
-    const size = PROP_SIZES[selected.userData.type];
-    selected.scale.x = fromUnitValue(v) / size.w;
-    autoKeyField(selected, 'scaleX');
-  });
-  makeScrubbable(document.getElementById('propDepthLabel'), 0.02, (v) => {
-    if (!selected || selected === 'camera' || !selected.userData.isProp) return;
-    if (v <= 0) return;
-    const size = PROP_SIZES[selected.userData.type];
-    selected.scale.z = fromUnitValue(v) / size.d;
-    autoKeyField(selected, 'scaleZ');
-  });
-  makeScrubbable(document.getElementById('propHeightLabel'), 0.02, (v) => {
-    if (!selected || selected === 'camera' || !selected.userData.isProp) return;
-    if (v <= 0) return;
-    const size = PROP_SIZES[selected.userData.type];
-    selected.scale.y = fromUnitValue(v) / size.h;
-    updatePropY(selected);
-    autoKeyField(selected, 'scaleY');
-  });
-  makeScrubbable(document.getElementById('objRotationLabel'), 0.5, (deg) => {
-    if (!selected || selected === 'camera' || selected.isCharGroup) return;
-    selected.rotation.y = deg * Math.PI / 180;
-    autoKeyField(selected, 'rotY');
-  }, 0);
-  makeScrubbable(document.getElementById('objRotationXLabel'), 0.5, (deg) => {
-    if (!selected || selected === 'camera' || !selected.userData.isProp) return;
-    selected.rotation.x = deg * Math.PI / 180;
-    autoKeyField(selected, 'rotX');
-  }, 0);
-  makeScrubbable(document.getElementById('objRotationZLabel'), 0.5, (deg) => {
-    if (!selected || selected === 'camera' || !selected.userData.isProp) return;
-    selected.rotation.z = deg * Math.PI / 180;
-    autoKeyField(selected, 'rotZ');
-  }, 0);
-  makeScrubbable(document.getElementById('objHeightLabel'), 0.02, (val) => {
-    if (!selected || selected === 'camera' || selected.isCharGroup) return;
-    if (selected.userData.isProp){
-      selected.userData.heightOffset = val;
-      updatePropY(selected);
-    } else {
-      selected.position.y = val;
-    }
-    autoKeyField(selected, 'y');
-  });
-  makeScrubbable(document.getElementById('objPosXLabel'), 0.02, (val) => {
-    if (!selected || selected === 'camera' || selected.isCharGroup) return;
-    selected.position.x = val;
-    autoKeyField(selected, 'x');
-  });
-  makeScrubbable(document.getElementById('objPosZLabel'), 0.02, (val) => {
-    if (!selected || selected === 'camera' || selected.isCharGroup) return;
-    selected.position.z = val;
-    autoKeyField(selected, 'z');
-  });
-  makeScrubbable(document.getElementById('charSizeLabel'), 0.005, (val) => {
-    if (!selected || selected === 'camera' || selected.isCharGroup || !selected.userData.parts) return;
-    if (val <= 0) return;
-    selected.scale.setScalar(val);
-    autoKeyField(selected, 'size');
-  });
+  // X/Y/Z, rotation, size/scale are all edited from the timeline's own
+  // per-parameter lanes now (see refreshKeyframePanel) instead of duplicate
+  // fields here — one place to change a value, right next to its keyframes.
   const POSE_ORDER = ['stand', 'sit', 'lie'];
   document.getElementById('poseToggle').onclick = () => {
     if (!selected || selected === 'camera') return;
@@ -2578,7 +2426,12 @@
   // that are genuinely unbounded in either direction, where a slider always
   // eventually runs out of travel. Click (no real movement) still focuses
   // the field normally for typing an exact value.
-  function makeScrubbable(el, sensitivity, onChange, decimals){
+  // onCommit (optional) fires once when an interaction actually settles —
+  // drag release, or blur/Enter after typing — instead of on every single
+  // change like onChange does. Needed for callers whose commit action is
+  // heavy (e.g. rebuilding the timeline DOM), which would otherwise yank
+  // the very field being dragged out from under the user's cursor mid-drag.
+  function makeScrubbable(el, sensitivity, onChange, decimals, onCommit){
     if (decimals === undefined) decimals = 2;
     let startX = 0, startVal = 0, dragging = false;
     // Window-level listeners bound only while a drag is in progress, rather
@@ -2601,8 +2454,10 @@
     function onUp(){
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
+      const wasDragging = dragging;
       dragging = false;
       activeScrubEl = null;
+      if (wasDragging && onCommit) onCommit(parseFloat(el.value));
     }
     el.addEventListener('pointerdown', (e) => {
       startX = e.clientX;
@@ -2617,6 +2472,13 @@
       if (isNaN(v)) return;
       onChange(v);
     });
+    if (onCommit){
+      el.addEventListener('change', (e) => {
+        if (dragging) return; // the drag's own onUp already committed
+        const v = parseFloat(e.target.value);
+        if (!isNaN(v)) onCommit(v);
+      });
+    }
   }
 
   function jointSliderId(name){ return 'joint' + name[0].toUpperCase() + name.slice(1); }
@@ -2777,14 +2639,6 @@
     }
   }
 
-  // Keeps the X/Z number fields live while dragging with the mouse, so a
-  // rough drag can be fine-tuned by eye and then finished off with an exact
-  // typed value instead of fighting the cursor for the last few centimeters.
-  function refreshPosFields(){
-    if (!selected || selected === 'camera' || selected.isCharGroup) return;
-    setScrubVal(document.getElementById('objPosXLabel'), selected.position.x, 2);
-    setScrubVal(document.getElementById('objPosZLabel'), selected.position.z, 2);
-  }
 
   function setMouseAt(e, canvasEl){
     const rect = canvasEl.getBoundingClientRect();
@@ -2888,7 +2742,6 @@
       const pt = floorPointAt(topCamera, topCanvas, e);
       applyDragMove(topDragObj, pt, topDragLastPt);
       topDragLastPt = pt;
-      refreshPosFields();
     } else if (topMode === 'pan' && topPanAnchor){
       const pt = floorPointAt(topCamera, topCanvas, e);
       topTarget.x -= (pt.x - topPanAnchor.x);
@@ -2905,8 +2758,8 @@
   });
   function endTopDrag(){
     topCanvas.classList.remove('dragging');
-    if (topMode === 'drag' && topDragObj) autoKeyDraggedPosition(topDragObj);
-    else if (topMode === 'camDrag'){ autoKeyField('camera', 'tx'); autoKeyField('camera', 'tz'); }
+    if (topMode === 'drag' && topDragObj){ autoKeyDraggedPosition(topDragObj); refreshKeyframePanel(); }
+    else if (topMode === 'camDrag'){ autoKeyField('camera', 'tx'); autoKeyField('camera', 'tz'); refreshKeyframePanel(); }
     topMode = null; topDragObj = null; topDragLastPt = null; topPanAnchor = null; topDragKf = null;
   }
   topCanvas.addEventListener('pointerup', endTopDrag);
@@ -2972,7 +2825,6 @@
       const pt = floorPoint(e);
       applyDragMove(dragChar, pt, dragLastPt);
       dragLastPt = pt;
-      refreshPosFields();
     } else if (mode === 'dragKf' && dragKf){
       const pt = floorPoint(e);
       dragKf.x = pt.x;
@@ -2992,7 +2844,7 @@
   function endDrag(e){
     canvas.classList.remove('dragging');
     if (mode === null) return;
-    if (mode === 'dragChar' && dragChar) autoKeyDraggedPosition(dragChar);
+    if (mode === 'dragChar' && dragChar){ autoKeyDraggedPosition(dragChar); refreshKeyframePanel(); }
     if (mode === 'orbit' || mode === 'dragChar'){
       const moved = Math.abs(e.clientX - downX) + Math.abs(e.clientY - downY);
       if (moved < 4 && mode === 'orbit'){
@@ -3068,6 +2920,16 @@
     return CHAR_FIELD_GROUPS;
   }
 
+  // Scrub sensitivity/decimals per field, for the timeline's inline value
+  // editors — angles move in whole degrees, everything else in the same
+  // real-world-unit steps the old (now-removed) side-panel fields used.
+  const SCRUB_PARAMS_BY_FIELD = {
+    rotX: { sensitivity: 0.5, decimals: 0 }, rotY: { sensitivity: 0.5, decimals: 0 }, rotZ: { sensitivity: 0.5, decimals: 0 },
+    theta: { sensitivity: 0.5, decimals: 0 }, phi: { sensitivity: 0.5, decimals: 0 },
+    radius: { sensitivity: 0.05, decimals: 2 },
+    size: { sensitivity: 0.005, decimals: 2 }
+  };
+
   // Auto-key: editing a value from the panel/HUD only creates or updates a
   // keyframe for that one parameter — and only if that parameter's own
   // track is already animated (has at least one keyframe somewhere). A
@@ -3121,6 +2983,58 @@
     if (field === 'size') return obj.scale.x;
     if (field === 'pose') return obj.userData.pose;
     return undefined;
+  }
+
+  // Human-friendly read/write for a field — degrees instead of radians, real
+  // -world units instead of raw scale factors — used by the timeline's
+  // inline value editors (the single home for editing these parameters,
+  // now that the side panel's copies of them are gone).
+  function readDisplayFieldValue(obj, field){
+    if (obj === 'camera'){
+      if (field === 'radius') return radius;
+      if (field === 'theta'){ let d = Math.round(theta * 180 / Math.PI) % 360; if (d < 0) d += 360; return d; }
+      if (field === 'phi') return Math.round(90 - phi * 180 / Math.PI);
+      if (field === 'tx') return target.x;
+      if (field === 'ty') return target.y;
+      if (field === 'tz') return target.z;
+    }
+    if (field === 'x') return obj.position.x;
+    if (field === 'z') return obj.position.z;
+    if (field === 'y') return obj.userData.isProp ? (obj.userData.heightOffset || 0) : obj.position.y;
+    if (field === 'rotX') return Math.round(obj.rotation.x * 180 / Math.PI);
+    if (field === 'rotY') return Math.round(obj.rotation.y * 180 / Math.PI);
+    if (field === 'rotZ') return Math.round(obj.rotation.z * 180 / Math.PI);
+    if (field === 'size') return toUnitValue(obj.userData.baseHeight * obj.scale.x);
+    if (field === 'scaleX') return toUnitValue(PROP_SIZES[obj.userData.type].w * obj.scale.x);
+    if (field === 'scaleY') return toUnitValue(PROP_SIZES[obj.userData.type].h * obj.scale.y);
+    if (field === 'scaleZ') return toUnitValue(PROP_SIZES[obj.userData.type].d * obj.scale.z);
+    return 0;
+  }
+
+  function applyDisplayFieldValue(obj, field, v){
+    if (obj === 'camera'){
+      if (field === 'radius') radius = v;
+      else if (field === 'theta') theta = v * Math.PI / 180;
+      else if (field === 'phi') phi = (90 - v) * Math.PI / 180;
+      else if (field === 'tx') target.x = v;
+      else if (field === 'ty') target.y = v;
+      else if (field === 'tz') target.z = v;
+      updateCameraFromSpherical();
+      return;
+    }
+    if (field === 'x') obj.position.x = v;
+    else if (field === 'z') obj.position.z = v;
+    else if (field === 'y'){
+      if (obj.userData.isProp){ obj.userData.heightOffset = v; updatePropY(obj); }
+      else obj.position.y = v;
+    }
+    else if (field === 'rotX') obj.rotation.x = v * Math.PI / 180;
+    else if (field === 'rotY') obj.rotation.y = v * Math.PI / 180;
+    else if (field === 'rotZ') obj.rotation.z = v * Math.PI / 180;
+    else if (field === 'size'){ if (v > 0) obj.scale.setScalar(fromUnitValue(v) / obj.userData.baseHeight); }
+    else if (field === 'scaleX'){ if (v > 0) obj.scale.x = fromUnitValue(v) / PROP_SIZES[obj.userData.type].w; }
+    else if (field === 'scaleY'){ if (v > 0){ obj.scale.y = fromUnitValue(v) / PROP_SIZES[obj.userData.type].h; updatePropY(obj); } }
+    else if (field === 'scaleZ'){ if (v > 0) obj.scale.z = fromUnitValue(v) / PROP_SIZES[obj.userData.type].d; }
   }
 
   function findKeyframeAt(kfs, t){
@@ -3506,10 +3420,10 @@
   // both the whole-object summary lane and the per-parameter sub-lanes.
   // Data mutation is left entirely to the callbacks so each caller can
   // decide what "moving" or "deleting" this particular mark means.
-  function createKfMark(lane, t, { onDrag, onCommitDrag, onClickJump, onShiftDelete }){
+  function createKfMark(lane, t, { onDrag, onCommitDrag, onClickJump, onShiftDelete, title }){
     const mark = document.createElement('div');
     mark.className = 'kf-mark';
-    mark.title = 'Drag to move, click to select + jump to it, Shift+click to delete';
+    mark.title = title || 'Drag to move, click to select + jump to it, Shift+click to delete';
     mark.style.left = (timelineDuration > 0 ? (t / timelineDuration * 100) : 0) + '%';
     let dragStartX = null, didDrag = false, lastNewT = t;
     mark.addEventListener('pointerdown', (e) => {
@@ -3614,19 +3528,48 @@
           subName.textContent = group.label;
           subName.style.overflow = 'hidden';
           subName.style.textOverflow = 'ellipsis';
-          const addBtn = document.createElement('span');
-          addBtn.className = 'kf-add-field-btn';
-          addBtn.textContent = '+';
-          addBtn.title = 'Add a keyframe for just ' + group.label + ' at the current time';
-          addBtn.onclick = (e) => {
-            e.stopPropagation();
-            select(track.obj);
-            pushUndo();
-            addKeyframeGroupNoUndo(track.obj, currentTime, group);
-            refreshTrajectory();
-            refreshKeyframePanel();
-          };
-          subLabel.append(subName, addBtn);
+          const singleField = !group.nested && group.fields.length === 1 && group.fields[0] !== 'pose' ? group.fields[0] : null;
+          if (singleField){
+            // The value lives right next to its own keyframes now — this is
+            // the only place left to edit it, since the side panel's copy
+            // of these fields was removed. Scrubbing/typing updates the
+            // live object continuously (cheap); the keyframe itself is only
+            // written once the interaction settles (onCommit), since that
+            // rebuilds this whole timeline and would otherwise yank the
+            // field out from under an in-progress drag.
+            const valueInput = document.createElement('input');
+            valueInput.type = 'number';
+            valueInput.className = 'kf-sub-value';
+            const scrub = SCRUB_PARAMS_BY_FIELD[singleField] || { sensitivity: 0.02, decimals: 2 };
+            valueInput.value = readDisplayFieldValue(track.obj, singleField).toFixed(scrub.decimals);
+            makeScrubbable(valueInput, scrub.sensitivity, (v) => {
+              applyDisplayFieldValue(track.obj, singleField, v);
+              if (selected === track.obj) refreshTrajectory();
+            }, scrub.decimals, () => {
+              // The value itself was already applied by onChange above —
+              // this just captures it as a keyframe once the interaction
+              // settles. select() also rebuilds this panel, which is why it
+              // only happens here and not on every drag tick.
+              select(track.obj);
+              addKeyframeGroupNoUndo(track.obj, currentTime, group);
+              refreshTrajectory();
+            });
+            subLabel.append(subName, valueInput);
+          } else {
+            const addBtn = document.createElement('span');
+            addBtn.className = 'kf-add-field-btn';
+            addBtn.textContent = '+';
+            addBtn.title = 'Add a keyframe for just ' + group.label + ' at the current time';
+            addBtn.onclick = (e) => {
+              e.stopPropagation();
+              select(track.obj);
+              pushUndo();
+              addKeyframeGroupNoUndo(track.obj, currentTime, group);
+              refreshTrajectory();
+              refreshKeyframePanel();
+            };
+            subLabel.append(subName, addBtn);
+          }
           subLabel.onclick = () => select(track.obj);
           labels.appendChild(subLabel);
 
@@ -3644,6 +3587,7 @@
             : group.fields.some(f => k[f] !== undefined));
           entries.forEach(entry => {
             createKfMark(subLane, entry.t, {
+              title: 'Drag to move just ' + group.label + ', click to jump to it, Shift+click to delete just ' + group.label,
               // The entry may be shared with other parameter groups at the
               // same instant, so only the actual data move/split happens on
               // release — moving it live would drag those other groups too.
@@ -3793,7 +3737,7 @@
           if (lateral) selected.position.x += sign * step;
           else selected.position.z += sign * step;
           autoKeyField(selected, lateral ? 'x' : 'z');
-          refreshPosFields();
+          refreshKeyframePanel();
         }
       }
     }
