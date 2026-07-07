@@ -3568,7 +3568,23 @@
               addKeyframeGroupNoUndo(track.obj, currentTime, group);
               refreshTrajectory();
             });
-            subLabel.append(subName, valueInput);
+            // A separate "+" alongside the value field — editing the value
+            // only keyframes when it actually changes, so this is still
+            // needed to key the current value as-is (e.g. holding a pose
+            // steady at a new time without nudging the number at all).
+            const addBtn = document.createElement('span');
+            addBtn.className = 'kf-add-field-btn';
+            addBtn.textContent = '+';
+            addBtn.title = 'Add a keyframe for just ' + group.label + ' with its current value';
+            addBtn.onclick = (e) => {
+              e.stopPropagation();
+              select(track.obj);
+              pushUndo();
+              addKeyframeGroupNoUndo(track.obj, currentTime, group);
+              refreshTrajectory();
+              refreshKeyframePanel();
+            };
+            subLabel.append(subName, valueInput, addBtn);
           } else {
             const addBtn = document.createElement('span');
             addBtn.className = 'kf-add-field-btn';
