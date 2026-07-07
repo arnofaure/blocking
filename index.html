@@ -1010,7 +1010,16 @@
     body.className = 'section-body';
     Array.from(section.children).forEach(el => { if (el !== h2) body.appendChild(el); });
     section.appendChild(body);
-    h2.onclick = () => { section.classList.toggle('collapsed'); updateCollapseAllBtn(); };
+    h2.onclick = () => {
+      const wasCollapsed = section.classList.contains('collapsed');
+      // Opening a section closes whichever other one was open, so the panel
+      // reads as an accordion instead of stacking multiple open sections.
+      if (wasCollapsed){
+        document.querySelectorAll('#panel > section').forEach(s => { if (s !== section) s.classList.add('collapsed'); });
+      }
+      section.classList.toggle('collapsed');
+      updateCollapseAllBtn();
+    };
     section.classList.add('collapsed');
 
     const info = SECTION_ICONS[h2.textContent.trim()];
@@ -3797,6 +3806,7 @@
   // ---------- Recording ----------
   let mediaRecorder = null, chunks = [], recording = false;
   let recordTrack = null, recordFrameMs = 1000/30, lastCaptureTs = 0;
+  let recordCropCanvas = null, recordCropCtx = null, recordCropRect = null;
   const recBtn = document.getElementById('recBtn');
   const statusEl = document.getElementById('status');
   const dlWrap = document.getElementById('dlWrap');
@@ -3814,11 +3824,36 @@
     recordFrameMs = 1000 / fps;
     lastCaptureTs = 0;
     try {
+      // The recorded source must match the still-image export's crop (the
+      // selected Frame ratio guide), not the raw canvas — otherwise the
+      // video comes out at the full viewport's aspect regardless of the
+      // chosen ratio. When a ratio is set, record from a small offscreen
+      // canvas we redraw (cropped) into every captured frame instead.
+      if (frameAspect){
+        const scaleX = canvas.width / viewport.w, scaleY = canvas.height / viewport.h;
+        // Computed once (not re-derived every frame) so a window resize
+        // mid-recording can't desync the crop canvas from the draw calls,
+        // and rounded to even pixels since WebM/VP9 requires it.
+        const evenDown = (n) => Math.max(2, Math.floor(n / 2) * 2);
+        recordCropRect = {
+          sx: Math.round(frameRect.x * scaleX), sy: Math.round(frameRect.y * scaleY),
+          sw: evenDown(frameRect.w * scaleX), sh: evenDown(frameRect.h * scaleY)
+        };
+        recordCropCanvas = document.createElement('canvas');
+        recordCropCanvas.width = recordCropRect.sw;
+        recordCropCanvas.height = recordCropRect.sh;
+        recordCropCtx = recordCropCanvas.getContext('2d');
+        stream = recordCropCanvas.captureStream(0);
+      } else {
+        recordCropCanvas = null;
+        recordCropCtx = null;
+        recordCropRect = null;
+        stream = canvas.captureStream(0);
+      }
       // 0 = manual mode: the browser won't auto-sample the canvas on its own timer.
       // We push frames ourselves (see render()) paced to the chosen fps, so the
       // output timing matches our own render loop instead of two independent,
       // unsynced clocks racing each other (which read as stutter in the export).
-      stream = canvas.captureStream(0);
       recordTrack = stream.getVideoTracks()[0];
     }
     catch(err){ statusEl.textContent = "Video capture not supported in this browser."; return; }
@@ -3845,6 +3880,9 @@
       recBtn.classList.remove('active');
       recording = false;
       recordTrack = null;
+      recordCropCanvas = null;
+      recordCropCtx = null;
+      recordCropRect = null;
     };
 
     mediaRecorder.start();
@@ -4080,6 +4118,10 @@
       const now = performance.now();
       if (now - lastCaptureTs >= recordFrameMs){
         lastCaptureTs = now;
+        if (recordCropCtx){
+          const r = recordCropRect;
+          recordCropCtx.drawImage(canvas, r.sx, r.sy, r.sw, r.sh, 0, 0, r.sw, r.sh);
+        }
         recordTrack.requestFrame();
       }
     }
