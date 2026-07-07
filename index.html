@@ -207,6 +207,10 @@
     color: var(--text-dim); background:rgba(0,0,0,0.4); padding:3px 7px; border-radius:4px;
   }
 
+  #refImage {
+    position:absolute; left:0; top:0; width:100%; height:100%;
+    object-fit:contain; pointer-events:none; z-index:4; display:none;
+  }
   #frameOverlay {
     position:absolute; pointer-events:none; z-index:5;
   }
@@ -520,6 +524,7 @@
   <div id="views">
     <div id="canvas-wrap">
       <canvas id="c"></canvas>
+      <img id="refImage" alt="Reference image">
       <div id="frameOverlay">
         <div id="frameMask"></div>
         <div id="frameLabel"></div>
@@ -794,6 +799,16 @@
     <label class="hint" style="display:flex; align-items:center; gap:6px; margin-top:10px">
       <input type="checkbox" id="frameGuides"> Center cross + phi grid
     </label>
+    <p class="hint" style="margin-top:10px; margin-bottom:6px">Reference photo — pinned over the main view (not the 3D), to line up shots against a real location or plate.</p>
+    <div class="row">
+      <button id="refImageBtn">+ Reference image</button>
+      <button class="danger" id="refImageRemove" style="display:none">Remove</button>
+    </div>
+    <input type="file" id="refImageInput" accept="image/*" style="display:none">
+    <div class="row align" id="refImageOpacityRow" style="margin-top:8px; display:none">
+      <span class="label-sm">Opacity</span>
+      <input type="number" class="val-input" id="refImageOpacityLabel" step="0.05" value="0.50">
+    </div>
   </section>
 
 
@@ -1213,6 +1228,43 @@
     frameGuidesOn = e.target.checked;
     frameGuideEls.forEach(el => el.style.display = frameGuidesOn ? '' : 'none');
   };
+
+  // ---------- Reference image (pinned 2D overlay, main view only) ----------
+  // A local photo/plate to line the shot up against — screen-space only, so
+  // it never moves with the 3D camera, and it's kept out of every export
+  // (image/video/depth) the same way the other on-screen-only aids are.
+  const refImage = document.getElementById('refImage');
+  const refImageBtn = document.getElementById('refImageBtn');
+  const refImageInput = document.getElementById('refImageInput');
+  const refImageRemove = document.getElementById('refImageRemove');
+  const refImageOpacityRow = document.getElementById('refImageOpacityRow');
+  let refImageOpacity = 0.5;
+
+  refImageBtn.onclick = () => refImageInput.click();
+  refImageInput.onchange = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      refImage.src = reader.result;
+      refImage.style.display = 'block';
+      refImage.style.opacity = refImageOpacity;
+      refImageRemove.style.display = '';
+      refImageOpacityRow.style.display = 'flex';
+    };
+    reader.readAsDataURL(file);
+  };
+  refImageRemove.onclick = () => {
+    refImage.src = '';
+    refImage.style.display = 'none';
+    refImageInput.value = '';
+    refImageRemove.style.display = 'none';
+    refImageOpacityRow.style.display = 'none';
+  };
+  makeScrubbable(document.getElementById('refImageOpacityLabel'), 0.005, (v) => {
+    refImageOpacity = Math.max(0, Math.min(1, v));
+    refImage.style.opacity = refImageOpacity;
+  });
 
   makeScrubbable(document.getElementById('sunAzimuthLabel'), 0.5, (v) => {
     sunAzimuth = v;
