@@ -668,6 +668,21 @@
       <span class="label-sm">Color</span>
       <input type="color" id="objColor" value="#d98e4a" style="flex:1; height:28px; padding:2px; cursor:pointer;">
     </div>
+    <div class="row align" id="propSwapRow" style="margin-top:8px; display:none" title="Replace this object's shape, keeping its position, rotation, name, lock state and keyframes">
+      <span class="label-sm">Swap to</span>
+      <select id="propSwapSelect" style="flex:1">
+        <option value="">Choose a shape…</option>
+        <option value="car">Car</option>
+        <option value="bus">Bus</option>
+        <option value="wall">Wall</option>
+        <option value="house">House</option>
+        <option value="table">Table</option>
+        <option value="sphere">Sphere</option>
+        <option value="cube">Cube</option>
+        <option value="pyramid">Pyramid</option>
+        <option value="cage">Cage</option>
+      </select>
+    </div>
     <div class="row align" id="jointsRow" style="margin-top:8px; display:none; flex-direction:column; align-items:stretch; gap:6px">
       <div class="row align">
         <span class="label-sm">Shoulder L</span>
@@ -2155,6 +2170,33 @@
     return group;
   }
 
+  // A plain box didn't read as "front" vs "back" at all — a low-poly body
+  // + cabin block (offset toward the rear, leaving a longer hood up front)
+  // gives it an actual silhouette, and lines up with the facing-direction
+  // arrow (which points toward local +Z, i.e. the hood end).
+  function buildCarGroup(color){
+    const size = PROP_SIZES.car;
+    const mat = new THREE.MeshStandardMaterial({ color, roughness:0.6, flatShading:true });
+    const group = new THREE.Group();
+
+    const bodyH = size.h * 0.5;
+    const body = new THREE.Mesh(new THREE.BoxGeometry(size.w, bodyH, size.d), mat);
+    body.position.y = -size.h / 2 + bodyH / 2;
+    body.castShadow = true;
+    group.add(body);
+
+    const cabinW = size.w * 0.74;
+    const cabinH = size.h * 0.5;
+    const cabinD = size.d * 0.4;
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(cabinW, cabinH, cabinD), mat);
+    cabin.position.set(0, -size.h / 2 + bodyH + cabinH / 2, -size.d * 0.12);
+    cabin.castShadow = true;
+    group.add(cabin);
+
+    group.userData.mat = mat;
+    return group;
+  }
+
   // Primitives get a unit-size geometry so the Width/Height/Depth scale
   // sliders (which multiply, starting from 1) map directly to meters.
   function propGeometry(type, size){
@@ -2174,6 +2216,8 @@
     let mesh;
     if (type === 'cage'){
       mesh = buildCageGroup(size.color);
+    } else if (type === 'car'){
+      mesh = buildCarGroup(size.color);
     } else {
       mesh = new THREE.Mesh(
         propGeometry(type, size),
@@ -2197,6 +2241,58 @@
     refreshList();
   }
 
+  function swapPropType(oldMesh, newType){
+    if (!oldMesh || !oldMesh.userData.isProp || oldMesh.userData.type === newType) return;
+    pushUndo();
+    const size = PROP_SIZES[newType];
+    let mesh;
+    if (newType === 'cage'){
+      mesh = buildCageGroup(size.color);
+    } else if (newType === 'car'){
+      mesh = buildCarGroup(size.color);
+    } else {
+      mesh = new THREE.Mesh(
+        propGeometry(newType, size),
+        new THREE.MeshStandardMaterial({ color: size.color, roughness:0.75 })
+      );
+      mesh.userData.mat = mesh.material;
+    }
+    mesh.userData.mat.color.copy(oldMesh.userData.mat.color);
+    mesh.castShadow = true; mesh.receiveShadow = true;
+    mesh.userData.baseHeight = size.h;
+    mesh.userData.isProp = true;
+    mesh.userData.type = newType;
+    mesh.userData.name = oldMesh.userData.name;
+    mesh.userData.locked = oldMesh.userData.locked;
+    mesh.userData.keyframes = oldMesh.userData.keyframes;
+    mesh.userData.heightOffset = oldMesh.userData.heightOffset || 0;
+
+    const realHeight = oldMesh.userData.baseHeight * oldMesh.scale.y;
+    mesh.scale.setScalar(realHeight / mesh.userData.baseHeight);
+    mesh.rotation.copy(oldMesh.rotation);
+    mesh.position.copy(oldMesh.position);
+    updatePropY(mesh);
+
+    mesh.add(makeDirectionArrow(size.d / 2 + 0.15));
+
+    scene.remove(oldMesh);
+    scene.add(mesh);
+
+    const idx = objects.indexOf(oldMesh);
+    if (idx >= 0) objects[idx] = mesh;
+    const g = groups.find(g => g.members.includes(oldMesh));
+    if (g){
+      const mi = g.members.indexOf(oldMesh);
+      g.members[mi] = mesh;
+    }
+    if (multiSelectSet.has(oldMesh)){ multiSelectSet.delete(oldMesh); multiSelectSet.add(mesh); }
+
+    select(mesh);
+    refreshList();
+    refreshTrajectory();
+    refreshKeyframePanel();
+  }
+
   function select(obj){
     selected = obj;
     const isChar = !!selected && selected !== 'camera' && !!selected.userData.parts;
@@ -2212,6 +2308,13 @@
       const mat = isChar ? selected.userData.parts.mat : selected.userData.mat;
       document.getElementById('objColor').value = '#' + mat.color.getHexString();
     }
+    const propSwapRow = document.getElementById('propSwapRow');
+    propSwapRow.style.display = isProp ? 'flex' : 'none';
+    if (isProp) document.getElementById('propSwapSelect').value = '';
+    document.getElementById('propSwapSelect').onchange = (e) => {
+      const newType = e.target.value;
+      if (newType && selected && selected.userData.isProp) swapPropType(selected, newType);
+    };
     const jointsRow = document.getElementById('jointsRow');
     jointsRow.style.display = isChar ? 'flex' : 'none';
     if (isChar){
