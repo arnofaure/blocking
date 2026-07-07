@@ -246,10 +246,10 @@
   #frameOverlay .crosshair::after { top:50%; left:0; right:0; height:1.5px; transform:translateY(-50%); }
 
   #camHud {
-    position:absolute; left:25px; bottom:60px; z-index:6; width:200px;
+    position:absolute; left:25px; bottom:60px; z-index:6; width:220px;
     background: rgba(10,10,10,0.6); border:1px solid rgba(255,255,255,0.45);
-    border-radius:8px; padding:10px 12px; backdrop-filter: blur(6px);
-    display:flex; flex-direction:column; gap:7px; pointer-events:auto;
+    border-radius:10px; padding:16px 18px; backdrop-filter: blur(6px);
+    display:flex; flex-direction:column; gap:11px; pointer-events:auto;
   }
   #camHud.hidden { display:none; }
   #camHud .hud-row { display:flex; align-items:center; gap:7px; }
@@ -491,6 +491,10 @@
         <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
         Storyboard App
       </a>
+      <a class="tb-btn" href="https://time.arnofaure.com/" target="_blank" rel="noopener noreferrer" title="Open the Time Tracker app">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        Time Tracker
+      </a>
       <div class="tb-sep-h"></div>
       <button class="tb-btn" id="menuHelp" title="Quick guide to using the Blocking Tool">
         <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
@@ -613,6 +617,12 @@
     </label>
     <label class="hint" style="display:flex; align-items:center; gap:6px; margin-top:4px">
       <input type="checkbox" id="depthToggle"> Depth view (preview before exporting)
+    </label>
+    <label class="hint" style="display:flex; align-items:center; gap:6px; margin-top:4px">
+      <input type="checkbox" id="nameTagsToggle"> Name tags above characters/objects
+    </label>
+    <label class="hint" style="display:flex; align-items:center; gap:6px; margin-top:4px">
+      <input type="checkbox" id="directionArrowsToggle"> Facing-direction arrows
     </label>
     <div class="row align" style="margin-top:8px">
       <span class="label-sm">Units</span>
@@ -892,6 +902,12 @@
 
   <section>
     <h2>Export</h2>
+    <label class="hint" style="display:flex; align-items:center; gap:6px; margin-bottom:4px">
+      <input type="checkbox" id="exportNameTags"> Include name tags in exports
+    </label>
+    <label class="hint" style="display:flex; align-items:center; gap:6px; margin-bottom:10px">
+      <input type="checkbox" id="exportDirectionArrows"> Include direction arrows in exports
+    </label>
     <div class="row align" style="margin-bottom:6px">
       <span class="label-sm">Video fps</span>
       <select id="recFps" style="flex:1">
@@ -1439,6 +1455,116 @@
     });
   }
 
+  // ---------- Name tags: floating labels above characters/objects ----------
+  // sizeAttenuation:false keeps the label at a constant size on screen no
+  // matter how far the camera is — legible from across the scene without
+  // ballooning to cover the view once the camera gets close.
+  function makeNameTagTexture(text){
+    const fontSize = 54, paddingX = 26;
+    const measure = document.createElement('canvas').getContext('2d');
+    measure.font = '600 ' + fontSize + 'px sans-serif';
+    const textW = Math.ceil(measure.measureText(text).width);
+    const c = document.createElement('canvas');
+    c.width = textW + paddingX * 2;
+    c.height = Math.round(fontSize * 1.7);
+    const ctx = c.getContext('2d');
+    const w = c.width, h = c.height, r = h * 0.28;
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.beginPath();
+    ctx.moveTo(r, 0); ctx.arcTo(w, 0, w, h, r); ctx.arcTo(w, h, 0, h, r);
+    ctx.arcTo(0, h, 0, 0, r); ctx.arcTo(0, 0, w, 0, r);
+    ctx.closePath();
+    ctx.fill();
+    ctx.font = '600 ' + fontSize + 'px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(text, w / 2, h / 2 + 2);
+    const tex = new THREE.CanvasTexture(c);
+    return { tex, aspect: w / h };
+  }
+  let nameTagsOn = false;
+  const nameTagSprites = new Map(); // object -> { sprite, name }
+  const nameTagTmpBox = new THREE.Box3();
+  const NAME_TAG_HEIGHT = 0.032; // sizeAttenuation:false, so this is really a screen-relative size, not world meters
+
+  function disposeNameTag(entry){
+    scene.remove(entry.sprite);
+    entry.sprite.material.map.dispose();
+    entry.sprite.material.dispose();
+  }
+
+  function updateNameTags(){
+    const allObjs = characters.concat(objects);
+    for (const [obj, entry] of nameTagSprites){
+      if (!allObjs.includes(obj)){
+        disposeNameTag(entry);
+        nameTagSprites.delete(obj);
+      }
+    }
+    if (!nameTagsOn) return;
+    allObjs.forEach(obj => {
+      const name = obj.userData.name;
+      let entry = nameTagSprites.get(obj);
+      if (!entry || entry.name !== name){
+        if (entry) disposeNameTag(entry);
+        const { tex, aspect } = makeNameTagTexture(name);
+        const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, sizeAttenuation: false, depthTest: false });
+        const spr = new THREE.Sprite(mat);
+        spr.scale.set(NAME_TAG_HEIGHT * aspect, NAME_TAG_HEIGHT, 1);
+        spr.renderOrder = 6;
+        scene.add(spr);
+        entry = { sprite: spr, name };
+        nameTagSprites.set(obj, entry);
+      }
+      nameTagTmpBox.setFromObject(obj);
+      const cx = (nameTagTmpBox.min.x + nameTagTmpBox.max.x) / 2;
+      const cz = (nameTagTmpBox.min.z + nameTagTmpBox.max.z) / 2;
+      entry.sprite.position.set(cx, nameTagTmpBox.max.y + 0.3, cz);
+    });
+  }
+
+  function setNameTagsVisible(visible){
+    if (!visible && includeNameTagsInExport) return; // user wants them baked into the export
+    if (!nameTagsOn) return;
+    nameTagSprites.forEach(entry => { entry.sprite.visible = visible; });
+  }
+
+  // ---------- Facing-direction arrows: small cone pointing each object's +Z ----------
+  let directionArrowsOn = false;
+  const directionArrowMeshes = [];
+  // A real arrow — shaft + tip — instead of a bare cone, pointing local +Z.
+  // Positioned centered on the object's own X (left/right) and, via yOffset,
+  // its vertical middle rather than down near the feet/ground.
+  function makeDirectionArrow(zOffset, yOffset){
+    if (zOffset === undefined) zOffset = 0.55;
+    if (yOffset === undefined) yOffset = 0;
+    const mat = new THREE.MeshBasicMaterial({ color: 0x22ff55, depthTest: false });
+    const shaftLen = 0.4, tipLen = 0.24;
+
+    const shaftGeo = new THREE.CylinderGeometry(0.028, 0.028, shaftLen, 8);
+    shaftGeo.rotateX(Math.PI / 2);
+    shaftGeo.translate(0, 0, shaftLen / 2);
+    const shaft = new THREE.Mesh(shaftGeo, mat);
+
+    const tipGeo = new THREE.ConeGeometry(0.075, tipLen, 8);
+    tipGeo.rotateX(Math.PI / 2);
+    tipGeo.translate(0, 0, shaftLen + tipLen / 2);
+    const tip = new THREE.Mesh(tipGeo, mat);
+
+    const group = new THREE.Group();
+    group.add(shaft, tip);
+    group.position.set(0, yOffset, zOffset);
+    group.renderOrder = 6;
+    group.visible = directionArrowsOn;
+    directionArrowMeshes.push(group);
+    return group;
+  }
+  function setDirectionArrowsVisible(visible){
+    if (!visible && includeDirectionArrowsInExport) return; // user wants them baked into the export
+    directionArrowMeshes.forEach(m => { m.visible = visible && directionArrowsOn; });
+  }
+
   // camera position/facing marker, mainly useful in the top-down view
   const camMarkerGeo = new THREE.ConeGeometry(0.35, 0.9, 3);
   camMarkerGeo.rotateX(-Math.PI/2); // apex now points along local -Z
@@ -1813,6 +1939,7 @@
     root.userData.baseHeight = box.max.y - box.min.y;
     // New characters default to a real 1.70m standing height.
     root.scale.setScalar(1.70 / root.userData.baseHeight);
+    root.add(makeDirectionArrow(0.55, root.userData.baseHeight / 2));
     return root;
   }
 
@@ -2073,6 +2200,7 @@
     const count = objects.filter(o => o.userData.type === type).length + 1;
     mesh.userData.name = type.charAt(0).toUpperCase() + type.slice(1) + ' ' + count;
     mesh.userData.type = type;
+    mesh.add(makeDirectionArrow(size.d / 2 + 0.15));
     scene.add(mesh);
     objects.push(mesh);
     select(mesh);
@@ -2551,6 +2679,22 @@
   }
   depthToggle.onchange = (e) => applyDepthToggle(e.target.checked);
   tlDepthToggle.onclick = () => applyDepthToggle(!depthViewOn);
+
+  document.getElementById('nameTagsToggle').onchange = (e) => {
+    nameTagsOn = e.target.checked;
+    if (!nameTagsOn){
+      nameTagSprites.forEach(disposeNameTag);
+      nameTagSprites.clear();
+    }
+  };
+  document.getElementById('directionArrowsToggle').onchange = (e) => {
+    directionArrowsOn = e.target.checked;
+    directionArrowMeshes.forEach(m => { m.visible = directionArrowsOn; });
+  };
+  let includeNameTagsInExport = false;
+  let includeDirectionArrowsInExport = false;
+  document.getElementById('exportNameTags').onchange = (e) => { includeNameTagsInExport = e.target.checked; };
+  document.getElementById('exportDirectionArrows').onchange = (e) => { includeDirectionArrowsInExport = e.target.checked; };
 
   // ---------- Pointer interaction: orbit vs drag-character ----------
   const raycaster = new THREE.Raycaster();
@@ -3991,11 +4135,15 @@
     selectionRing.visible = false;
     lockIconSprites.forEach(spr => { spr.visible = false; });
     setTrajectoryVisible(false);
+    setNameTagsVisible(false);
+    setDirectionArrowsVisible(false);
     fn();
     selectionMarker.visible = prevMarker;
     selectionRing.visible = prevRing;
     lockIconSprites.forEach(spr => { spr.visible = true; });
     setTrajectoryVisible(true);
+    setNameTagsVisible(true);
+    setDirectionArrowsVisible(true);
   }
 
   // A filesystem-safe stem for exported files, from the loaded/saved shot's
@@ -4065,6 +4213,8 @@
     selectionRing.visible = false;
     lockIconSprites.forEach(spr => { spr.visible = false; });
     setTrajectoryVisible(false);
+    setNameTagsVisible(false);
+    setDirectionArrowsVisible(false);
     const charStates = characters.map(root => {
       const prev = { bodyTilt: root.userData.parts.bodyTilt.visible, rig: root.userData.skeleton.rig.visible };
       root.userData.parts.bodyTilt.visible = true;
@@ -4093,6 +4243,8 @@
     selectionRing.visible = prevSelRing;
     lockIconSprites.forEach(spr => { spr.visible = true; });
     setTrajectoryVisible(true);
+    setNameTagsVisible(true);
+    setDirectionArrowsVisible(true);
     characters.forEach((root, i) => {
       root.userData.parts.bodyTilt.visible = charStates[i].bodyTilt;
       root.userData.skeleton.rig.visible = charStates[i].rig;
@@ -4147,15 +4299,19 @@
     // The video recorder captures the live canvas continuously (not a single
     // render like the still exports), so these UI-only overlays are hidden
     // for the whole recording instead of being wrapped around one render call.
+    updateNameTags(); // kept live even while recording, in case they're set to be included in the export
     if (recording){
       selectionMarker.visible = false;
       selectionRing.visible = false;
       lockIconSprites.forEach(spr => { spr.visible = false; });
       setTrajectoryVisible(false);
+      setNameTagsVisible(false);
+      setDirectionArrowsVisible(false);
     } else {
       updateSelectionIndicators();
       updateLockIcons();
       setTrajectoryVisible(true);
+      setDirectionArrowsVisible(true);
     }
     applyHandheldShake(currentTime);
     renderer.setScissorTest(false);
