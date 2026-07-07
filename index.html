@@ -446,6 +446,26 @@
     transform:translate(-50%,-50%) rotate(45deg); border-radius:2px; cursor:ew-resize; z-index:2; touch-action:none;
   }
   .kf-mark:hover { background: var(--danger); transform:translate(-50%,-50%) rotate(45deg) scale(1.3); }
+  .kf-expand-arrow {
+    display:inline-flex; align-items:center; justify-content:center;
+    width:14px; height:14px; flex-shrink:0; margin-right:4px; font-size:10px;
+    color:#fff; background: rgba(255,255,255,0.16); border-radius:3px;
+    transition: transform 0.12s, background 0.12s;
+  }
+  .kf-expand-arrow:hover { background: rgba(255,255,255,0.32); }
+  .kf-expand-arrow.open { transform: rotate(90deg); }
+  .kf-row-label.sub {
+    height:22px; padding-left:22px; font-size:10.5px; color:var(--text-dim);
+    display:flex; align-items:center; justify-content:space-between; gap:4px;
+  }
+  .kf-lane.sub { height:22px; }
+  .kf-lane.sub .kf-mark { width:7px; height:7px; }
+  .kf-add-field-btn {
+    flex-shrink:0; width:14px; height:14px; line-height:12px; text-align:center;
+    border-radius:3px; font-size:11px; color:var(--text-dim); cursor:pointer;
+    border:0.5px solid var(--panel-border);
+  }
+  .kf-add-field-btn:hover { color: var(--text); border-color: var(--text); }
   #kfPlayhead {
     position:absolute; top:0; bottom:0; width:1.5px; background: var(--danger);
     pointer-events:none; z-index:3;
@@ -612,18 +632,6 @@
     </div>
     <button class="danger" id="delChar" disabled>Delete</button>
     <button id="groupBtn" disabled>Group selected</button>
-    <label class="hint" style="display:flex; align-items:center; gap:6px; margin-top:8px">
-      <input type="checkbox" id="skeletonToggle"> Skeleton view (characters only)
-    </label>
-    <label class="hint" style="display:flex; align-items:center; gap:6px; margin-top:4px">
-      <input type="checkbox" id="depthToggle"> Depth view (preview before exporting)
-    </label>
-    <label class="hint" style="display:flex; align-items:center; gap:6px; margin-top:4px">
-      <input type="checkbox" id="nameTagsToggle"> Name tags above characters/objects
-    </label>
-    <label class="hint" style="display:flex; align-items:center; gap:6px; margin-top:4px">
-      <input type="checkbox" id="directionArrowsToggle"> Facing-direction arrows
-    </label>
     <div class="row align" style="margin-top:8px">
       <span class="label-sm">Units</span>
       <select id="sizeUnit" style="flex:1">
@@ -748,6 +756,38 @@
   </section>
 
   <section>
+    <h2>Display</h2>
+    <label class="hint" style="display:flex; align-items:center; gap:6px">
+      <input type="checkbox" id="gridToggle" checked> Show floor grid
+    </label>
+    <label class="hint" style="display:flex; align-items:center; gap:6px; margin-top:4px">
+      <input type="checkbox" id="frameGuides"> Center cross + phi grid
+    </label>
+    <label class="hint" style="display:flex; align-items:center; gap:6px; margin-top:4px">
+      <input type="checkbox" id="skeletonToggle"> Skeleton view (characters only)
+    </label>
+    <label class="hint" style="display:flex; align-items:center; gap:6px; margin-top:4px">
+      <input type="checkbox" id="depthToggle"> Depth view (preview before exporting)
+    </label>
+    <label class="hint" style="display:flex; align-items:center; gap:6px; margin-top:4px">
+      <input type="checkbox" id="nameTagsToggle"> Name tags above characters/objects
+    </label>
+    <label class="hint" style="display:flex; align-items:center; gap:6px; margin-top:4px">
+      <input type="checkbox" id="directionArrowsToggle"> Facing-direction arrows
+    </label>
+    <p class="hint" style="margin-top:10px; margin-bottom:6px">Reference photo — pinned over the main view (not the 3D), to line up shots against a real location or plate.</p>
+    <div class="row">
+      <button id="refImageBtn">+ Reference image</button>
+      <button class="danger" id="refImageRemove" style="display:none">Remove</button>
+    </div>
+    <input type="file" id="refImageInput" accept="image/*" style="display:none">
+    <div class="row align" id="refImageOpacityRow" style="margin-top:8px; display:none">
+      <span class="label-sm">Opacity</span>
+      <input type="number" class="val-input" id="refImageOpacityLabel" step="0.05" value="0.50">
+    </div>
+  </section>
+
+  <section>
     <h2>Background</h2>
     <div class="swatches">
       <div class="swatch active" data-bg="#aeb0b4" style="background:#aeb0b4"></div>
@@ -755,9 +795,6 @@
       <div class="swatch" data-bg="#3a3a3a" style="background:#3a3a3a"></div>
       <div class="swatch" data-bg="#0c0c0c" style="background:#0c0c0c"></div>
     </div>
-    <label class="hint" style="display:flex; align-items:center; gap:6px; margin-top:10px">
-      <input type="checkbox" id="gridToggle" checked> Show floor grid
-    </label>
     <div class="row align" style="margin-top:10px; margin-bottom:6px">
       <span class="label-sm">Sun azimuth</span>
       <input type="number" class="val-input" id="sunAzimuthLabel" min="0" max="360" step="1" value="40">
@@ -805,19 +842,6 @@
     </div>
     <div class="row" style="margin-top:6px">
       <button class="frame-btn" data-ratio="2.39">2.39</button>
-    </div>
-    <label class="hint" style="display:flex; align-items:center; gap:6px; margin-top:10px">
-      <input type="checkbox" id="frameGuides"> Center cross + phi grid
-    </label>
-    <p class="hint" style="margin-top:10px; margin-bottom:6px">Reference photo — pinned over the main view (not the 3D), to line up shots against a real location or plate.</p>
-    <div class="row">
-      <button id="refImageBtn">+ Reference image</button>
-      <button class="danger" id="refImageRemove" style="display:none">Remove</button>
-    </div>
-    <input type="file" id="refImageInput" accept="image/*" style="display:none">
-    <div class="row align" id="refImageOpacityRow" style="margin-top:8px; display:none">
-      <span class="label-sm">Opacity</span>
-      <input type="number" class="val-input" id="refImageOpacityLabel" step="0.05" value="0.50">
     </div>
   </section>
 
@@ -1015,13 +1039,14 @@
   // ---------- Collapsible left-panel sections ----------
   const SECTION_ICONS = {
     'Characters / Objects': { color:'#4a7fe8', svg:'<circle cx="12" cy="7" r="4"/><path d="M5.5 21a7.5 7.5 0 0113 0"/>' },
+    'Display':    { color:'#ec4899', svg:'<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/>' },
     'Background': { color:'#8b5cf6', svg:'<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>' },
     'Frame':      { color:'#14b8a6', svg:'<path d="M6 2v14a2 2 0 002 2h14"/><path d="M18 22V8a2 2 0 00-2-2H2"/>' },
     'Lens':       { color:'#f59e0b', svg:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5"/>' },
     'Camera position': { color:'#22c55e', svg:'<circle cx="12" cy="12" r="9"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/>' },
     'Camera moves': { color:'#06b6d4', svg:'<polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/>' },
     'Camera path': { color:'#f97316', svg:'<polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/>' },
-    'Shots':      { color:'#a855f7', svg:'<path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/>' },
+    'Shots':      { color:'#ef4444', svg:'<path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/>' },
     'Export':     { color:'#6366f1', svg:'<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>' }
   };
 
@@ -1502,7 +1527,11 @@
         nameTagSprites.delete(obj);
       }
     }
-    if (!nameTagsOn) return;
+    // Built whenever either the live toggle or the export-inclusion checkbox
+    // wants them, so "include in export" works even with the on-screen
+    // display switched off (e.g. keep the working view uncluttered but still
+    // bake names into the final render).
+    if (!nameTagsOn && !includeNameTagsInExport) return;
     allObjs.forEach(obj => {
       const name = obj.userData.name;
       let entry = nameTagSprites.get(obj);
@@ -1521,13 +1550,16 @@
       const cx = (nameTagTmpBox.min.x + nameTagTmpBox.max.x) / 2;
       const cz = (nameTagTmpBox.min.z + nameTagTmpBox.max.z) / 2;
       entry.sprite.position.set(cx, nameTagTmpBox.max.y + 0.3, cz);
+      entry.sprite.visible = nameTagsOn;
     });
   }
 
-  function setNameTagsVisible(visible){
-    if (!visible && includeNameTagsInExport) return; // user wants them baked into the export
-    if (!nameTagsOn) return;
-    nameTagSprites.forEach(entry => { entry.sprite.visible = visible; });
+  // restoreLive=true -> back to the on-screen toggle's state; false -> the
+  // state to use for the export currently being captured (independent of
+  // whether they're shown on screen at all).
+  function setNameTagsVisible(restoreLive){
+    const show = restoreLive ? nameTagsOn : includeNameTagsInExport;
+    nameTagSprites.forEach(entry => { entry.sprite.visible = show; });
   }
 
   // ---------- Facing-direction arrows: small cone pointing each object's +Z ----------
@@ -1560,9 +1592,10 @@
     directionArrowMeshes.push(group);
     return group;
   }
-  function setDirectionArrowsVisible(visible){
-    if (!visible && includeDirectionArrowsInExport) return; // user wants them baked into the export
-    directionArrowMeshes.forEach(m => { m.visible = visible && directionArrowsOn; });
+  // Same restoreLive convention as setNameTagsVisible.
+  function setDirectionArrowsVisible(restoreLive){
+    const show = restoreLive ? directionArrowsOn : includeDirectionArrowsInExport;
+    directionArrowMeshes.forEach(m => { m.visible = show; });
   }
 
   // camera position/facing marker, mainly useful in the top-down view
@@ -2965,6 +2998,139 @@
     return obj.userData.keyframes || (obj.userData.keyframes = []);
   }
 
+  // ---------- Per-parameter keyframe tracks ----------
+  // Every field below can be keyframed independently of the others — a
+  // keyframe entry only needs to carry whichever field(s) it actually sets,
+  // and each field interpolates using only the entries that define it (see
+  // interpSparseField), so e.g. a rotation-only keyframe doesn't force a
+  // position keyframe to exist at the same time or vice versa. The timeline
+  // groups these into one lane per field, collapsible into a single summary
+  // lane per object.
+  const CHAR_FIELD_GROUPS = [
+    { key:'x', label:'X', fields:['x'] },
+    { key:'y', label:'Y (height)', fields:['y'] },
+    { key:'z', label:'Z', fields:['z'] },
+    { key:'rotY', label:'Rotation Y', fields:['rotY'] },
+    { key:'size', label:'Size', fields:['size'] },
+    { key:'pose', label:'Pose', fields:['pose'] },
+    { key:'joints', label:'Joints', fields:[], nested:'joints' }
+  ];
+  const PROP_FIELD_GROUPS = [
+    { key:'x', label:'X', fields:['x'] },
+    { key:'y', label:'Y (height)', fields:['y'] },
+    { key:'z', label:'Z', fields:['z'] },
+    { key:'rotX', label:'Rotation X', fields:['rotX'] },
+    { key:'rotY', label:'Rotation Y', fields:['rotY'] },
+    { key:'rotZ', label:'Rotation Z', fields:['rotZ'] },
+    { key:'scaleX', label:'Scale X', fields:['scaleX'] },
+    { key:'scaleY', label:'Scale Y', fields:['scaleY'] },
+    { key:'scaleZ', label:'Scale Z', fields:['scaleZ'] }
+  ];
+  const CAMERA_FIELD_GROUPS = [
+    { key:'radius', label:'Distance', fields:['radius'] },
+    { key:'theta', label:'Orbit', fields:['theta'] },
+    { key:'phi', label:'Tilt', fields:['phi'] },
+    { key:'tx', label:'Target X', fields:['tx'] },
+    { key:'ty', label:'Target Y', fields:['ty'] },
+    { key:'tz', label:'Target Z', fields:['tz'] }
+  ];
+  function getFieldGroups(obj){
+    if (obj === 'camera') return CAMERA_FIELD_GROUPS;
+    if (obj.userData.isProp) return PROP_FIELD_GROUPS;
+    return CHAR_FIELD_GROUPS;
+  }
+
+  // Reads the object's current live value for a field, for capturing a new keyframe.
+  function readLiveField(obj, field){
+    if (obj === 'camera'){
+      if (field === 'radius') return radius;
+      if (field === 'theta') return theta;
+      if (field === 'phi') return phi;
+      if (field === 'tx') return target.x;
+      if (field === 'ty') return target.y;
+      if (field === 'tz') return target.z;
+    }
+    if (field === 'x') return obj.position.x;
+    if (field === 'y') return obj.position.y;
+    if (field === 'z') return obj.position.z;
+    if (field === 'rotX') return obj.rotation.x;
+    if (field === 'rotY') return obj.rotation.y;
+    if (field === 'rotZ') return obj.rotation.z;
+    if (field === 'scaleX') return obj.scale.x;
+    if (field === 'scaleY') return obj.scale.y;
+    if (field === 'scaleZ') return obj.scale.z;
+    if (field === 'size') return obj.scale.x;
+    if (field === 'pose') return obj.userData.pose;
+    return undefined;
+  }
+
+  function findKeyframeAt(kfs, t){
+    return kfs.find(k => Math.abs(k.t - t) < 0.005) || null;
+  }
+
+  // Merges a group's current live value(s) into the keyframe array at time t
+  // — creating a new sparse entry there if none exists yet, or merging into
+  // whatever entry (from other groups keyed at the same instant) is already there.
+  function addKeyframeGroupNoUndo(obj, t, group){
+    const kfs = getKeyframes(obj);
+    let entry = findKeyframeAt(kfs, t);
+    if (!entry){ entry = { t }; kfs.push(entry); kfs.sort((a,b)=>a.t-b.t); }
+    if (group.nested) entry[group.nested] = { ...(entry[group.nested] || {}), ...obj.userData[group.nested] };
+    else group.fields.forEach(f => { entry[f] = readLiveField(obj, f); });
+  }
+
+  // True once an entry has nothing left worth keeping beyond its own time.
+  function entryIsEmpty(entry){
+    return !Object.keys(entry).some(k => {
+      if (k === 't') return false;
+      if (k === 'joints') return entry.joints && Object.keys(entry.joints).length > 0;
+      return true;
+    });
+  }
+
+  function removeGroupFromEntry(obj, entry, group){
+    if (group.nested) delete entry[group.nested];
+    else group.fields.forEach(f => delete entry[f]);
+    if (entryIsEmpty(entry)){
+      const kfs = getKeyframes(obj);
+      const idx = kfs.indexOf(entry);
+      if (idx >= 0) kfs.splice(idx, 1);
+    }
+  }
+
+  // Finds, among entries that actually define this group, whichever is
+  // nearest to t — mirrors removeNearestKeyframeNoUndo but scoped to one
+  // parameter group instead of the whole object.
+  function nearestEntryForGroup(kfs, t, group){
+    const candidates = kfs.filter(k => group.nested
+      ? (k[group.nested] && Object.keys(k[group.nested]).length)
+      : group.fields.some(f => k[f] !== undefined));
+    if (!candidates.length) return null;
+    let best = candidates[0], bestDist = Math.abs(best.t - t);
+    candidates.forEach(k => { const d = Math.abs(k.t - t); if (d < bestDist){ bestDist = d; best = k; } });
+    return best;
+  }
+
+  function removeNearestGroupKeyframeNoUndo(obj, t, group){
+    const entry = nearestEntryForGroup(getKeyframes(obj), t, group);
+    if (entry) removeGroupFromEntry(obj, entry, group);
+  }
+
+  // Relocates just one group's data from an existing entry to a (possibly
+  // new) entry at newT, leaving whatever other groups live on the original
+  // entry untouched.
+  function moveGroupKeyframe(obj, entry, group, newT){
+    const kfs = getKeyframes(obj);
+    const movedNested = group.nested ? { ...entry[group.nested] } : null;
+    const movedFields = group.nested ? null : group.fields.map(f => [f, entry[f]]);
+    removeGroupFromEntry(obj, entry, group);
+    let target = findKeyframeAt(kfs, newT);
+    if (!target){ target = { t: newT }; kfs.push(target); }
+    if (group.nested) target[group.nested] = { ...(target[group.nested] || {}), ...movedNested };
+    else movedFields.forEach(([f, v]) => { target[f] = v; });
+    kfs.sort((a,b)=>a.t-b.t);
+  }
+
   function addKeyframe(obj, t){
     pushUndo();
     if (obj.isCharGroup){
@@ -2980,23 +3146,10 @@
     refreshTrajectory();
   }
 
+  // The global "+Keyframe" shortcut/button keys every parameter group at
+  // once, for convenience — same end result as before this track split.
   function addKeyframeNoUndo(obj, t){
-    const kfs = getKeyframes(obj);
-    let kf;
-    if (obj === 'camera') kf = { t, radius, theta, phi, tx: target.x, ty: target.y, tz: target.z };
-    else if (obj.userData.isProp) kf = {
-      t, x: obj.position.x, y: obj.position.y, z: obj.position.z,
-      rotY: obj.rotation.y, rotX: obj.rotation.x, rotZ: obj.rotation.z,
-      scaleX: obj.scale.x, scaleY: obj.scale.y, scaleZ: obj.scale.z
-    };
-    else kf = {
-      t, x: obj.position.x, y: obj.position.y, z: obj.position.z,
-      pose: obj.userData.pose, rotY: obj.rotation.y, size: obj.scale.x,
-      joints: {...obj.userData.joints}
-    };
-    const i = kfs.findIndex(k => Math.abs(k.t - t) < 0.005);
-    if (i >= 0) kfs[i] = kf;
-    else { kfs.push(kf); kfs.sort((a,b)=>a.t-b.t); }
+    getFieldGroups(obj).forEach(group => addKeyframeGroupNoUndo(obj, t, group));
   }
 
   function removeNearestKeyframe(obj, t){
@@ -3014,6 +3167,8 @@
     refreshTrajectory();
   }
 
+  // Removes the whole entry nearest t (every group it carries) — used by the
+  // global "Delete keyframe" button/shortcut.
   function removeNearestKeyframeNoUndo(obj, t){
     const kfs = getKeyframes(obj);
     if (!kfs.length) return;
@@ -3024,7 +3179,8 @@
 
   function easeInOut(e){ return e<0.5 ? 2*e*e : 1 - Math.pow(-2*e+2,2)/2; }
 
-  // Finds the keyframe segment containing t. a===b at/beyond the ends (held value).
+  // Finds the keyframe segment containing t, within an arbitrary (possibly
+  // sparse/synthetic) keyframe list. a===b at/beyond the ends (held value).
   function findKfSegment(kfs, t){
     if (t <= kfs[0].t) return { i:0, a:kfs[0], b:kfs[0], u:0 };
     if (t >= kfs[kfs.length-1].t) return { i:kfs.length-2, a:kfs[kfs.length-1], b:kfs[kfs.length-1], u:0 };
@@ -3082,46 +3238,57 @@
     return h00*p1 + h10*m1 + h01*p2 + h11*m2;
   }
 
-
-  function applyKeyframesToObject(obj, t, hasPose){
-    const kfs = getKeyframes(obj);
-    if (!kfs.length) return;
-    const seg = findKfSegment(kfs, t);
-    obj.position.x = interpKfField(kfs, seg, 'x');
-    obj.position.z = interpKfField(kfs, seg, 'z');
-    if (typeof seg.a.y === 'number' && typeof seg.b.y === 'number') obj.position.y = interpKfField(kfs, seg, 'y');
-    // Rotations interpolate as plain raw radians (no shortest-path wraparound):
-    // keyframe values are unbounded and typed directly (e.g. 0 -> 720deg for
-    // two full turns), so collapsing the delta to within +-180 would silently
-    // erase intentional multi-turn spins.
-    if (typeof seg.a.rotY === 'number' && typeof seg.b.rotY === 'number') obj.rotation.y = interpKfField(kfs, seg, 'rotY');
-    if (typeof seg.a.rotX === 'number' && typeof seg.b.rotX === 'number') obj.rotation.x = interpKfField(kfs, seg, 'rotX');
-    if (typeof seg.a.rotZ === 'number' && typeof seg.b.rotZ === 'number') obj.rotation.z = interpKfField(kfs, seg, 'rotZ');
-    if (typeof seg.a.scaleX === 'number' && typeof seg.b.scaleX === 'number'){
-      obj.scale.x = interpKfField(kfs, seg, 'scaleX');
-      obj.scale.y = interpKfField(kfs, seg, 'scaleY');
-      obj.scale.z = interpKfField(kfs, seg, 'scaleZ');
-    }
-    if (typeof seg.a.size === 'number' && typeof seg.b.size === 'number') obj.scale.setScalar(interpKfField(kfs, seg, 'size'));
-    if (hasPose){
-      let poseKf = kfs[0];
-      for (const k of kfs) if (k.t <= t) poseKf = k;
-      if (obj.userData.pose !== poseKf.pose) applyPose(obj, poseKf.pose);
-      JOINT_NAMES.forEach(n => {
-        const v = interpJointField(kfs, t, n);
-        if (v !== null) setJoint(obj, n, v);
-      });
-    }
+  // Interpolates a single field completely independently of every other
+  // field on the track — builds a synthetic sub-list of just the entries
+  // that actually define this field, so a sparse keyframe elsewhere (e.g.
+  // rotation-only) can't stall or skip this field's own curve. Returns null
+  // if the field isn't keyframed anywhere on this track.
+  function interpSparseField(kfs, t, field){
+    const synth = kfs.filter(k => typeof k[field] === 'number').map(k => ({ t: k.t, v: k[field] }));
+    if (!synth.length) return null;
+    const seg = findKfSegment(synth, t);
+    return interpKfField(synth, seg, 'v');
   }
 
   // Joints live in a per-keyframe sub-object rather than as a flat field, so
   // they get their own small self-contained segment/interpolation instead of
-  // reusing interpKfField's seg (which points at the outer x/y/z/rotY keyframes).
+  // reusing interpSparseField directly.
   function interpJointField(kfs, t, jointName){
     const synth = kfs.filter(k => k.joints && typeof k.joints[jointName] === 'number').map(k => ({ t: k.t, v: k.joints[jointName] }));
     if (!synth.length) return null;
     const seg = findKfSegment(synth, t);
     return interpKfField(synth, seg, 'v');
+  }
+
+  function applyKeyframesToObject(obj, t, hasPose){
+    const kfs = getKeyframes(obj);
+    if (!kfs.length) return;
+    const x = interpSparseField(kfs, t, 'x'); if (x !== null) obj.position.x = x;
+    const y = interpSparseField(kfs, t, 'y'); if (y !== null) obj.position.y = y;
+    const z = interpSparseField(kfs, t, 'z'); if (z !== null) obj.position.z = z;
+    // Rotations interpolate as plain raw radians (no shortest-path wraparound):
+    // keyframe values are unbounded and typed directly (e.g. 0 -> 720deg for
+    // two full turns), so collapsing the delta to within +-180 would silently
+    // erase intentional multi-turn spins.
+    const rotY = interpSparseField(kfs, t, 'rotY'); if (rotY !== null) obj.rotation.y = rotY;
+    const rotX = interpSparseField(kfs, t, 'rotX'); if (rotX !== null) obj.rotation.x = rotX;
+    const rotZ = interpSparseField(kfs, t, 'rotZ'); if (rotZ !== null) obj.rotation.z = rotZ;
+    const scaleX = interpSparseField(kfs, t, 'scaleX');
+    if (scaleX !== null){
+      obj.scale.x = scaleX;
+      const scaleY = interpSparseField(kfs, t, 'scaleY'); if (scaleY !== null) obj.scale.y = scaleY;
+      const scaleZ = interpSparseField(kfs, t, 'scaleZ'); if (scaleZ !== null) obj.scale.z = scaleZ;
+    }
+    const size = interpSparseField(kfs, t, 'size'); if (size !== null) obj.scale.setScalar(size);
+    if (hasPose){
+      let poseKf = null;
+      for (const k of kfs) if (k.t <= t && typeof k.pose === 'string') poseKf = k;
+      if (poseKf && obj.userData.pose !== poseKf.pose) applyPose(obj, poseKf.pose);
+      JOINT_NAMES.forEach(n => {
+        const v = interpJointField(kfs, t, n);
+        if (v !== null) setJoint(obj, n, v);
+      });
+    }
   }
 
   function applyTimeline(t){
@@ -3132,13 +3299,12 @@
   function applyCameraKeyframes(t){
     const kfs = cameraKeyframes;
     if (!kfs.length) return;
-    const seg = findKfSegment(kfs, t);
-    radius = interpKfField(kfs, seg, 'radius');
-    theta = interpKfField(kfs, seg, 'theta');
-    phi = interpKfField(kfs, seg, 'phi');
-    target.x = interpKfField(kfs, seg, 'tx');
-    target.y = interpKfField(kfs, seg, 'ty');
-    target.z = interpKfField(kfs, seg, 'tz');
+    const r = interpSparseField(kfs, t, 'radius'); if (r !== null) radius = r;
+    const th = interpSparseField(kfs, t, 'theta'); if (th !== null) theta = th;
+    const ph = interpSparseField(kfs, t, 'phi'); if (ph !== null) phi = ph;
+    const tx = interpSparseField(kfs, t, 'tx'); if (tx !== null) target.x = tx;
+    const ty = interpSparseField(kfs, t, 'ty'); if (ty !== null) target.y = ty;
+    const tz = interpSparseField(kfs, t, 'tz'); if (tz !== null) target.z = tz;
     updateCameraFromSpherical();
   }
 
@@ -3161,13 +3327,13 @@
   const trajectoryHitGeo = new THREE.SphereGeometry(0.18, 6, 6);
   const trajectoryHitMat = new THREE.MeshBasicMaterial();
 
-  function cameraWorldPosAt(kfs, seg){
-    const r = interpKfField(kfs, seg, 'radius');
-    const th = interpKfField(kfs, seg, 'theta');
-    const ph = interpKfField(kfs, seg, 'phi');
-    const tx = interpKfField(kfs, seg, 'tx');
-    const ty = interpKfField(kfs, seg, 'ty');
-    const tz = interpKfField(kfs, seg, 'tz');
+  function cameraWorldPosAt(kfs, t){
+    const r = interpSparseField(kfs, t, 'radius') ?? radius;
+    const th = interpSparseField(kfs, t, 'theta') ?? theta;
+    const ph = interpSparseField(kfs, t, 'phi') ?? phi;
+    const tx = interpSparseField(kfs, t, 'tx') ?? target.x;
+    const ty = interpSparseField(kfs, t, 'ty') ?? target.y;
+    const tz = interpSparseField(kfs, t, 'tz') ?? target.z;
     const rightX = Math.cos(th), rightZ = -Math.sin(th);
     const lookX = tx + rightX * camLateral, lookZ = tz + rightZ * camLateral;
     return new THREE.Vector3(
@@ -3177,12 +3343,15 @@
     );
   }
 
+  // Each axis interpolates independently now (sparse per-field tracks), so
+  // the trajectory samples each one on its own instead of via one shared
+  // segment — falls back to the object's current live value for any axis
+  // that isn't keyframed at all.
   function trajectoryPosAt(obj, kfs, t){
-    const seg = findKfSegment(kfs, t);
-    if (obj === 'camera') return cameraWorldPosAt(kfs, seg);
-    const x = interpKfField(kfs, seg, 'x');
-    const z = interpKfField(kfs, seg, 'z');
-    const y = (typeof seg.a.y === 'number' && typeof seg.b.y === 'number') ? interpKfField(kfs, seg, 'y') : obj.position.y;
+    if (obj === 'camera') return cameraWorldPosAt(kfs, t);
+    const x = interpSparseField(kfs, t, 'x') ?? obj.position.x;
+    const y = interpSparseField(kfs, t, 'y') ?? obj.position.y;
+    const z = interpSparseField(kfs, t, 'z') ?? obj.position.z;
     return new THREE.Vector3(x, y, z);
   }
 
@@ -3270,6 +3439,53 @@
   }
 
   // ---------- Multi-track keyframe panel ----------
+  // Which objects currently show their per-parameter sub-lanes expanded —
+  // membership persists across refreshes (rebuilt panel, not rebuilt state).
+  const kfExpandedSet = new Set();
+
+  // Shared drag/click/delete wiring for a single keyframe mark — used for
+  // both the whole-object summary lane and the per-parameter sub-lanes.
+  // Data mutation is left entirely to the callbacks so each caller can
+  // decide what "moving" or "deleting" this particular mark means.
+  function createKfMark(lane, t, { onDrag, onCommitDrag, onClickJump, onShiftDelete }){
+    const mark = document.createElement('div');
+    mark.className = 'kf-mark';
+    mark.title = 'Drag to move, click to select + jump to it, Shift+click to delete';
+    mark.style.left = (timelineDuration > 0 ? (t / timelineDuration * 100) : 0) + '%';
+    let dragStartX = null, didDrag = false, lastNewT = t;
+    mark.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      dragStartX = e.clientX;
+      didDrag = false;
+      mark.setPointerCapture(e.pointerId);
+    });
+    mark.addEventListener('pointermove', (e) => {
+      if (dragStartX === null) return;
+      if (!didDrag && Math.abs(e.clientX - dragStartX) < 3) return;
+      if (!didDrag) pushUndo();
+      didDrag = true;
+      const rect = lane.getBoundingClientRect();
+      const dFrac = rect.width > 0 ? (e.clientX - dragStartX) / rect.width : 0;
+      lastNewT = Math.max(0, Math.min(timelineDuration, t + dFrac * timelineDuration));
+      mark.style.left = (timelineDuration > 0 ? (lastNewT / timelineDuration * 100) : 0) + '%';
+      onDrag(lastNewT);
+    });
+    mark.addEventListener('pointerup', (e) => {
+      e.stopPropagation();
+      mark.releasePointerCapture(e.pointerId);
+      dragStartX = null;
+      if (didDrag) onCommitDrag(lastNewT);
+    });
+    mark.onclick = (e) => {
+      e.stopPropagation();
+      if (didDrag){ didDrag = false; return; }
+      if (e.shiftKey){ onShiftDelete(); return; }
+      onClickJump();
+    };
+    lane.appendChild(mark);
+    return mark;
+  }
+
   function refreshKeyframePanel(){
     const labels = document.getElementById('kfLabels');
     const lanesWrap = document.getElementById('kfLanesWrap');
@@ -3282,10 +3498,24 @@
       .concat(objects.map(mesh => ({ obj: mesh, name: mesh.userData.name, kfs: mesh.userData.keyframes || [], color: '#' + mesh.userData.mat.color.getHexString() })));
 
     tracks.forEach(track => {
+      const isExpanded = kfExpandedSet.has(track.obj);
       const rowLabel = document.createElement('div');
       rowLabel.className = 'kf-row-label' + (selected === track.obj ? ' active' : '');
-      rowLabel.textContent = track.name;
       rowLabel.style.background = hexToRgba(track.color, 0.22);
+      const arrow = document.createElement('span');
+      arrow.className = 'kf-expand-arrow' + (isExpanded ? ' open' : '');
+      arrow.textContent = '▸';
+      arrow.title = 'Show/hide per-parameter tracks';
+      arrow.onclick = (e) => {
+        e.stopPropagation();
+        if (isExpanded) kfExpandedSet.delete(track.obj); else kfExpandedSet.add(track.obj);
+        refreshKeyframePanel();
+      };
+      const nameSpan = document.createElement('span');
+      nameSpan.textContent = track.name;
+      nameSpan.style.overflow = 'hidden';
+      nameSpan.style.textOverflow = 'ellipsis';
+      rowLabel.append(arrow, nameSpan);
       rowLabel.onclick = () => select(track.obj);
       labels.appendChild(rowLabel);
 
@@ -3299,52 +3529,84 @@
         setCurrentTime(frac * timelineDuration);
       };
       track.kfs.forEach(k => {
-        const mark = document.createElement('div');
-        mark.className = 'kf-mark';
-        mark.title = 'Drag to move, click to select + jump to it, Shift+click to delete';
-        mark.style.left = (timelineDuration > 0 ? (k.t / timelineDuration * 100) : 0) + '%';
-
-        let dragStartX = null, didDrag = false, dragStartT = 0;
-        mark.addEventListener('pointerdown', (e) => {
-          e.stopPropagation();
-          dragStartX = e.clientX;
-          dragStartT = k.t;
-          didDrag = false;
-          mark.setPointerCapture(e.pointerId);
-        });
-        mark.addEventListener('pointermove', (e) => {
-          if (dragStartX === null) return;
-          if (!didDrag && Math.abs(e.clientX - dragStartX) < 3) return;
-          if (!didDrag) pushUndo();
-          didDrag = true;
-          const rect = lane.getBoundingClientRect();
-          const dFrac = rect.width > 0 ? (e.clientX - dragStartX) / rect.width : 0;
-          k.t = Math.max(0, Math.min(timelineDuration, dragStartT + dFrac * timelineDuration));
-          mark.style.left = (timelineDuration > 0 ? (k.t / timelineDuration * 100) : 0) + '%';
-          setCurrentTime(currentTime);
-          if (selected === track.obj) refreshTrajectory();
-        });
-        mark.addEventListener('pointerup', (e) => {
-          e.stopPropagation();
-          mark.releasePointerCapture(e.pointerId);
-          dragStartX = null;
-          if (didDrag){
+        createKfMark(lane, k.t, {
+          onDrag: (newT) => {
+            k.t = newT;
+            setCurrentTime(currentTime);
+            if (selected === track.obj) refreshTrajectory();
+          },
+          onCommitDrag: () => {
             track.kfs.sort((a,b)=>a.t-b.t);
             refreshKeyframePanel();
             setCurrentTime(currentTime);
             if (selected === track.obj) refreshTrajectory();
-          }
+          },
+          onClickJump: () => { select(track.obj); setCurrentTime(k.t); },
+          onShiftDelete: () => removeNearestKeyframe(track.obj, k.t)
         });
-        mark.onclick = (e) => {
-          e.stopPropagation();
-          if (didDrag){ didDrag = false; return; }
-          if (e.shiftKey){ removeNearestKeyframe(track.obj, k.t); return; }
-          select(track.obj);
-          setCurrentTime(k.t);
-        };
-        lane.appendChild(mark);
       });
       lanesWrap.appendChild(lane);
+
+      if (isExpanded && track.obj !== null){
+        getFieldGroups(track.obj).forEach(group => {
+          const subLabel = document.createElement('div');
+          subLabel.className = 'kf-row-label sub';
+          const subName = document.createElement('span');
+          subName.textContent = group.label;
+          subName.style.overflow = 'hidden';
+          subName.style.textOverflow = 'ellipsis';
+          const addBtn = document.createElement('span');
+          addBtn.className = 'kf-add-field-btn';
+          addBtn.textContent = '+';
+          addBtn.title = 'Add a keyframe for just ' + group.label + ' at the current time';
+          addBtn.onclick = (e) => {
+            e.stopPropagation();
+            select(track.obj);
+            pushUndo();
+            addKeyframeGroupNoUndo(track.obj, currentTime, group);
+            refreshTrajectory();
+            refreshKeyframePanel();
+          };
+          subLabel.append(subName, addBtn);
+          subLabel.onclick = () => select(track.obj);
+          labels.appendChild(subLabel);
+
+          const subLane = document.createElement('div');
+          subLane.className = 'kf-lane sub' + (selected === track.obj ? ' active' : '');
+          subLane.style.background = hexToRgba(track.color, 0.1);
+          subLane.onclick = (e) => {
+            const rect = subLane.getBoundingClientRect();
+            const frac = rect.width > 0 ? Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)) : 0;
+            select(track.obj);
+            setCurrentTime(frac * timelineDuration);
+          };
+          const entries = track.kfs.filter(k => group.nested
+            ? (k[group.nested] && Object.keys(k[group.nested]).length)
+            : group.fields.some(f => k[f] !== undefined));
+          entries.forEach(entry => {
+            createKfMark(subLane, entry.t, {
+              // The entry may be shared with other parameter groups at the
+              // same instant, so only the actual data move/split happens on
+              // release — moving it live would drag those other groups too.
+              onDrag: () => {},
+              onCommitDrag: (newT) => {
+                moveGroupKeyframe(track.obj, entry, group, newT);
+                refreshKeyframePanel();
+                setCurrentTime(currentTime);
+                if (selected === track.obj) refreshTrajectory();
+              },
+              onClickJump: () => { select(track.obj); setCurrentTime(entry.t); },
+              onShiftDelete: () => {
+                pushUndo();
+                removeNearestGroupKeyframeNoUndo(track.obj, entry.t, group);
+                refreshTrajectory();
+                refreshKeyframePanel();
+              }
+            });
+          });
+          lanesWrap.appendChild(subLane);
+        });
+      }
     });
 
     updatePlayhead();
