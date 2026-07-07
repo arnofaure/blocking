@@ -1756,14 +1756,17 @@
   makeScrubbable(camHeightLabel, 0.02, (v) => {
     target.y = v;
     updateCameraFromSpherical();
+    autoKeyField('camera', 'ty');
   });
   makeScrubbable(camTiltLabel, 0.5, (elevDeg) => {
     phi = (90 - elevDeg) * Math.PI / 180;
     updateCameraFromSpherical();
+    autoKeyField('camera', 'phi');
   }, 0);
   makeScrubbable(camPanLabel, 0.5, (panDeg) => {
     theta = panDeg * Math.PI / 180;
     updateCameraFromSpherical();
+    autoKeyField('camera', 'theta');
   }, 0);
   makeScrubbable(document.getElementById('camLateralLabel'), 0.02, (v) => {
     camLateral = v;
@@ -1773,14 +1776,17 @@
   makeScrubbable(hudHeight, 0.02, (v) => {
     target.y = v;
     updateCameraFromSpherical();
+    autoKeyField('camera', 'ty');
   });
   makeScrubbable(hudTilt, 0.5, (v) => {
     phi = (90 - v) * Math.PI / 180;
     updateCameraFromSpherical();
+    autoKeyField('camera', 'phi');
   });
   makeScrubbable(hudPan, 0.5, (v) => {
     theta = v * Math.PI / 180;
     updateCameraFromSpherical();
+    autoKeyField('camera', 'theta');
   });
   makeScrubbable(hudLateral, 0.02, (v) => {
     camLateral = v;
@@ -2499,12 +2505,14 @@
     if (v <= 0) return;
     const size = PROP_SIZES[selected.userData.type];
     selected.scale.x = fromUnitValue(v) / size.w;
+    autoKeyField(selected, 'scaleX');
   });
   makeScrubbable(document.getElementById('propDepthLabel'), 0.02, (v) => {
     if (!selected || selected === 'camera' || !selected.userData.isProp) return;
     if (v <= 0) return;
     const size = PROP_SIZES[selected.userData.type];
     selected.scale.z = fromUnitValue(v) / size.d;
+    autoKeyField(selected, 'scaleZ');
   });
   makeScrubbable(document.getElementById('propHeightLabel'), 0.02, (v) => {
     if (!selected || selected === 'camera' || !selected.userData.isProp) return;
@@ -2512,18 +2520,22 @@
     const size = PROP_SIZES[selected.userData.type];
     selected.scale.y = fromUnitValue(v) / size.h;
     updatePropY(selected);
+    autoKeyField(selected, 'scaleY');
   });
   makeScrubbable(document.getElementById('objRotationLabel'), 0.5, (deg) => {
     if (!selected || selected === 'camera' || selected.isCharGroup) return;
     selected.rotation.y = deg * Math.PI / 180;
+    autoKeyField(selected, 'rotY');
   }, 0);
   makeScrubbable(document.getElementById('objRotationXLabel'), 0.5, (deg) => {
     if (!selected || selected === 'camera' || !selected.userData.isProp) return;
     selected.rotation.x = deg * Math.PI / 180;
+    autoKeyField(selected, 'rotX');
   }, 0);
   makeScrubbable(document.getElementById('objRotationZLabel'), 0.5, (deg) => {
     if (!selected || selected === 'camera' || !selected.userData.isProp) return;
     selected.rotation.z = deg * Math.PI / 180;
+    autoKeyField(selected, 'rotZ');
   }, 0);
   makeScrubbable(document.getElementById('objHeightLabel'), 0.02, (val) => {
     if (!selected || selected === 'camera' || selected.isCharGroup) return;
@@ -2533,19 +2545,23 @@
     } else {
       selected.position.y = val;
     }
+    autoKeyField(selected, 'y');
   });
   makeScrubbable(document.getElementById('objPosXLabel'), 0.02, (val) => {
     if (!selected || selected === 'camera' || selected.isCharGroup) return;
     selected.position.x = val;
+    autoKeyField(selected, 'x');
   });
   makeScrubbable(document.getElementById('objPosZLabel'), 0.02, (val) => {
     if (!selected || selected === 'camera' || selected.isCharGroup) return;
     selected.position.z = val;
+    autoKeyField(selected, 'z');
   });
   makeScrubbable(document.getElementById('charSizeLabel'), 0.005, (val) => {
     if (!selected || selected === 'camera' || selected.isCharGroup || !selected.userData.parts) return;
     if (val <= 0) return;
     selected.scale.setScalar(val);
+    autoKeyField(selected, 'size');
   });
   const POSE_ORDER = ['stand', 'sit', 'lie'];
   document.getElementById('poseToggle').onclick = () => {
@@ -2613,6 +2629,7 @@
     makeScrubbable(numEl, 0.5, (deg) => {
       if (!selected || selected === 'camera' || !selected.userData.parts) return;
       setJoint(selected, name, deg);
+      autoKeyJoints(selected);
     }, 0);
   });
   document.getElementById('delChar').onclick = () => {
@@ -2739,6 +2756,14 @@
   let dragLastPt = null;
   let lastX = 0, lastY = 0;
   let downX = 0, downY = 0;
+
+  // Auto-key on drag release (not continuously mid-drag, to avoid flooding
+  // the track with a keyframe per pointermove) — same "only if that
+  // parameter is already animated" rule as the numeric fields.
+  function autoKeyDraggedPosition(obj){
+    if (obj.isCharGroup) obj.members.forEach(m => { autoKeyField(m, 'x'); autoKeyField(m, 'z'); });
+    else { autoKeyField(obj, 'x'); autoKeyField(obj, 'z'); }
+  }
 
   // A group has no single position — dragging translates every member by the
   // same delta instead of snapping to the cursor's floor point.
@@ -2880,6 +2905,8 @@
   });
   function endTopDrag(){
     topCanvas.classList.remove('dragging');
+    if (topMode === 'drag' && topDragObj) autoKeyDraggedPosition(topDragObj);
+    else if (topMode === 'camDrag'){ autoKeyField('camera', 'tx'); autoKeyField('camera', 'tz'); }
     topMode = null; topDragObj = null; topDragLastPt = null; topPanAnchor = null; topDragKf = null;
   }
   topCanvas.addEventListener('pointerup', endTopDrag);
@@ -2965,6 +2992,7 @@
   function endDrag(e){
     canvas.classList.remove('dragging');
     if (mode === null) return;
+    if (mode === 'dragChar' && dragChar) autoKeyDraggedPosition(dragChar);
     if (mode === 'orbit' || mode === 'dragChar'){
       const moved = Math.abs(e.clientX - downX) + Math.abs(e.clientY - downY);
       if (moved < 4 && mode === 'orbit'){
@@ -3038,6 +3066,37 @@
     if (obj === 'camera') return CAMERA_FIELD_GROUPS;
     if (obj.userData.isProp) return PROP_FIELD_GROUPS;
     return CHAR_FIELD_GROUPS;
+  }
+
+  // Auto-key: editing a value from the panel/HUD only creates or updates a
+  // keyframe for that one parameter — and only if that parameter's own
+  // track is already animated (has at least one keyframe somewhere). A
+  // never-animated object just gets posed normally; touching a field that's
+  // already keyframed elsewhere on the timeline extends that animation
+  // instead of silently drifting out of sync with it.
+  function isGroupAnimated(obj, group){
+    return getKeyframes(obj).some(k => group.nested
+      ? (k[group.nested] && Object.keys(k[group.nested]).length)
+      : group.fields.some(f => k[f] !== undefined));
+  }
+
+  function autoKeyGroup(obj, group){
+    if (!isGroupAnimated(obj, group)) return;
+    addKeyframeGroupNoUndo(obj, currentTime, group);
+    refreshTrajectory();
+    refreshKeyframePanel();
+  }
+
+  function autoKeyField(obj, field){
+    if (!obj) return;
+    const group = getFieldGroups(obj).find(g => g.fields.includes(field));
+    if (group) autoKeyGroup(obj, group);
+  }
+
+  function autoKeyJoints(obj){
+    if (!obj) return;
+    const group = CHAR_FIELD_GROUPS.find(g => g.key === 'joints');
+    autoKeyGroup(obj, group);
   }
 
   // Reads the object's current live value for a field, for capturing a new keyframe.
@@ -3721,15 +3780,19 @@
       if (!e.repeat) pushUndo(); // one undo step per hold, not one per repeated keydown
       if (selected === 'camera'){
         if (lateral) camLateral += sign * step;
-        else target.y += sign * step;
+        else { target.y += sign * step; autoKeyField('camera', 'ty'); }
         updateCameraFromSpherical();
       } else if (!selected.userData.locked){
         if (selected.isCharGroup){
           const dx = lateral ? sign * step : 0, dz = lateral ? 0 : sign * step;
-          selected.members.forEach(m => { m.position.x += dx; m.position.z += dz; });
+          selected.members.forEach(m => {
+            m.position.x += dx; m.position.z += dz;
+            autoKeyField(m, lateral ? 'x' : 'z');
+          });
         } else {
           if (lateral) selected.position.x += sign * step;
           else selected.position.z += sign * step;
+          autoKeyField(selected, lateral ? 'x' : 'z');
           refreshPosFields();
         }
       }
