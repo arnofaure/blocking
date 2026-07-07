@@ -1732,6 +1732,7 @@
   makeScrubbable(document.getElementById('camLateralLabel'), 0.02, (v) => {
     camLateral = v;
     updateCameraFromSpherical();
+    autoKeyField('camera', 'lateral');
   });
 
   makeScrubbable(hudHeight, 0.02, (v) => {
@@ -1752,6 +1753,7 @@
   makeScrubbable(hudLateral, 0.02, (v) => {
     camLateral = v;
     updateCameraFromSpherical();
+    autoKeyField('camera', 'lateral');
   });
   document.getElementById('camHudClose').onclick = () => {
     document.getElementById('camHud').classList.add('hidden');
@@ -2910,6 +2912,7 @@
     { key:'radius', label:'Distance', fields:['radius'] },
     { key:'theta', label:'Orbit', fields:['theta'] },
     { key:'phi', label:'Tilt', fields:['phi'] },
+    { key:'lateral', label:'Lateral', fields:['lateral'] },
     { key:'tx', label:'Target X', fields:['tx'] },
     { key:'ty', label:'Target Y', fields:['ty'] },
     { key:'tz', label:'Target Z', fields:['tz'] }
@@ -2967,6 +2970,7 @@
       if (field === 'radius') return radius;
       if (field === 'theta') return theta;
       if (field === 'phi') return phi;
+      if (field === 'lateral') return camLateral;
       if (field === 'tx') return target.x;
       if (field === 'ty') return target.y;
       if (field === 'tz') return target.z;
@@ -2994,6 +2998,7 @@
       if (field === 'radius') return radius;
       if (field === 'theta'){ let d = Math.round(theta * 180 / Math.PI) % 360; if (d < 0) d += 360; return d; }
       if (field === 'phi') return Math.round(90 - phi * 180 / Math.PI);
+      if (field === 'lateral') return camLateral;
       if (field === 'tx') return target.x;
       if (field === 'ty') return target.y;
       if (field === 'tz') return target.z;
@@ -3016,6 +3021,7 @@
       if (field === 'radius') radius = v;
       else if (field === 'theta') theta = v * Math.PI / 180;
       else if (field === 'phi') phi = (90 - v) * Math.PI / 180;
+      else if (field === 'lateral') camLateral = v;
       else if (field === 'tx') target.x = v;
       else if (field === 'ty') target.y = v;
       else if (field === 'tz') target.z = v;
@@ -3037,8 +3043,14 @@
     else if (field === 'scaleZ'){ if (v > 0) obj.scale.z = fromUnitValue(v) / PROP_SIZES[obj.userData.type].d; }
   }
 
+  // How close counts as "the same instant" when deciding whether an edit
+  // should update an existing keyframe in place vs. create a new one right
+  // next to it. 5ms (the old value) is under a pixel of timeline precision —
+  // nothing short of clicking the exact mark could ever land inside it, so
+  // any normal scrub (dragging the ruler, Play/Pause, arrow-jumping) always
+  // missed and silently created a duplicate instead of editing in place.
   function findKeyframeAt(kfs, t){
-    return kfs.find(k => Math.abs(k.t - t) < 0.005) || null;
+    return kfs.find(k => Math.abs(k.t - t) < 0.1) || null;
   }
 
   // Merges a group's current live value(s) into the keyframe array at time t
@@ -3275,6 +3287,7 @@
     const r = interpSparseField(kfs, t, 'radius'); if (r !== null) radius = r;
     const th = interpSparseField(kfs, t, 'theta'); if (th !== null) theta = th;
     const ph = interpSparseField(kfs, t, 'phi'); if (ph !== null) phi = ph;
+    const lat = interpSparseField(kfs, t, 'lateral'); if (lat !== null) camLateral = lat;
     const tx = interpSparseField(kfs, t, 'tx'); if (tx !== null) target.x = tx;
     const ty = interpSparseField(kfs, t, 'ty'); if (ty !== null) target.y = ty;
     const tz = interpSparseField(kfs, t, 'tz'); if (tz !== null) target.z = tz;
@@ -3307,8 +3320,9 @@
     const tx = interpSparseField(kfs, t, 'tx') ?? target.x;
     const ty = interpSparseField(kfs, t, 'ty') ?? target.y;
     const tz = interpSparseField(kfs, t, 'tz') ?? target.z;
+    const lat = interpSparseField(kfs, t, 'lateral') ?? camLateral;
     const rightX = Math.cos(th), rightZ = -Math.sin(th);
-    const lookX = tx + rightX * camLateral, lookZ = tz + rightZ * camLateral;
+    const lookX = tx + rightX * lat, lookZ = tz + rightZ * lat;
     return new THREE.Vector3(
       lookX + r * Math.sin(ph) * Math.sin(th),
       ty + r * Math.cos(ph),
@@ -3723,7 +3737,7 @@
       const lateral = (e.code === 'ArrowLeft' || e.code === 'ArrowRight');
       if (!e.repeat) pushUndo(); // one undo step per hold, not one per repeated keydown
       if (selected === 'camera'){
-        if (lateral) camLateral += sign * step;
+        if (lateral){ camLateral += sign * step; autoKeyField('camera', 'lateral'); }
         else { target.y += sign * step; autoKeyField('camera', 'ty'); }
         updateCameraFromSpherical();
       } else if (!selected.userData.locked){
