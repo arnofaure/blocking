@@ -245,39 +245,11 @@
   #frameOverlay .crosshair::before { left:50%; top:0; bottom:0; width:1.5px; transform:translateX(-50%); }
   #frameOverlay .crosshair::after { top:50%; left:0; right:0; height:1.5px; transform:translateY(-50%); }
 
-  #camHud {
-    position:absolute; left:25px; bottom:60px; z-index:6; width:220px;
-    background: rgba(10,10,10,0.6); border:1px solid rgba(34,197,94,0.55);
-    border-left:3px solid #22c55e;
-    border-radius:10px; padding:16px 18px; backdrop-filter: blur(6px);
-    display:flex; flex-direction:column; gap:11px; pointer-events:auto;
-  }
-  #camHud.hidden { display:none; }
-  #camHud .hud-row { display:flex; align-items:center; gap:7px; }
-  #camHud .hud-label {
-    font-size:9px; letter-spacing:.06em; text-transform:uppercase;
-    color:rgba(255,255,255,0.55); width:36px; flex-shrink:0;
-  }
-  #camHud .hud-val { font-size:11px; color:#fff; width:40px; text-align:right; flex-shrink:0; }
-  #camHud input[type="range"] { flex:1; width:auto; accent-color:#fff; }
-  #camHud .hud-scrub {
-    flex:1; width:auto; font-size:11px; color:#fff; text-align:right;
-    background: rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.28);
-    border-radius:4px; padding:3px 6px; margin:0; cursor:ew-resize;
-  }
-  #camHud .hud-scrub:focus { cursor:text; background: rgba(255,255,255,0.18); }
   .hud-lens-btn {
     width:20px; flex-shrink:0; margin:0; padding:3px 0; text-align:center;
     background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.25); color:#fff;
   }
   .hud-lens-btn:hover { background:rgba(255,255,255,0.18); }
-  #camHudToggle {
-    position:absolute; left:25px; bottom:60px; z-index:6; width:auto;
-    margin:0; padding:5px 9px; font-size:10px;
-    background:rgba(10,10,10,0.55); color:#fff; border-color:rgba(255,255,255,0.25);
-    display:none; pointer-events:auto;
-  }
-  #camHudToggle.visible { display:block; }
 
   #displayHud, #charHud, #bgHud {
     position:absolute; z-index:6; width:230px; max-height:42%;
@@ -288,7 +260,14 @@
     color:#fff;
   }
   #displayHud { top:36px; right:16px; border-left:3px solid #ec4899; border-color:rgba(236,72,153,0.55); }
+  /* #charHud doubles as the Camera HUD when the camera is selected — its
+     accent color/title switch between green (camera) and blue (object) via
+     the .showing-camera class, set in JS alongside the title text. */
   #charHud { bottom:60px; right:16px; border-left:3px solid #4a7fe8; border-color:rgba(74,127,232,0.55); }
+  #charHud.showing-camera {
+    border-left-color:#22c55e; border-color:rgba(34,197,94,0.55);
+    left:25px; right:auto;
+  }
   #bgHud { top:36px; left:16px; border-left:3px solid #8b5cf6; border-color:rgba(139,92,246,0.55); }
   #displayHud.hidden, #charHud.hidden, #bgHud.hidden { display:none; }
   #displayHud .hint, #charHud .hint, #bgHud .hint { color:rgba(255,255,255,0.55); }
@@ -298,13 +277,17 @@
     color:rgba(255,255,255,0.85);
   }
   #displayHud .hud-label { color:#ec4899; }
-  #charHud .hud-label { color:#7ea0ff; }
+  #charHud #paramHudTitle { color:#7ea0ff; }
+  #charHud.showing-camera #paramHudTitle { color:#4ade80; }
   #bgHud .hud-label { color:#b79bf7; }
   #displayHud .hud-row, #charHud .hud-row, #bgHud .hud-row { display:flex; align-items:center; gap:7px; }
   #displayHud select, #charHud select, #bgHud select,
   #displayHud input[type="number"], #charHud input[type="number"], #bgHud input[type="number"] {
     background: rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.28); color:#fff;
   }
+  #charHud .hud-scrub { cursor:ew-resize; text-align:right; }
+  #charHud .hud-scrub:focus { cursor:text; }
+  #charHud .hud-val { font-size:11px; color:#fff; width:40px; text-align:right; flex-shrink:0; }
   #displayHudToggle, #charHudToggle, #bgHudToggle {
     position:absolute; z-index:6; width:auto;
     margin:0; padding:5px 9px; font-size:10px;
@@ -313,6 +296,7 @@
   }
   #displayHudToggle { top:36px; right:16px; border-color:#ec4899; }
   #charHudToggle { bottom:60px; right:16px; border-color:#4a7fe8; }
+  #charHudToggle.showing-camera { border-color:#22c55e; left:25px; right:auto; }
   #bgHudToggle { top:36px; left:16px; border-color:#8b5cf6; }
   #displayHudToggle.visible, #charHudToggle.visible, #bgHudToggle.visible { display:block; }
 
@@ -602,35 +586,6 @@
         <div class="grid-line h frame-guide" style="top:38.197%"></div>
         <div class="grid-line h frame-guide" style="top:61.803%"></div>
       </div>
-      <div id="camHud">
-        <div class="hud-row" style="justify-content:space-between; margin-bottom:-3px">
-          <span class="hud-label" style="width:auto">Camera</span>
-          <button class="hud-lens-btn" id="camHudClose" style="width:20px" title="Hide HUD">×</button>
-        </div>
-        <div class="hud-row">
-          <span class="hud-label">Height</span>
-          <input type="number" class="hud-scrub" id="hudHeight" step="0.05" value="1.00" title="Drag sideways to scrub, click to type">
-        </div>
-        <div class="hud-row">
-          <span class="hud-label">Tilt</span>
-          <input type="number" class="hud-scrub" id="hudTilt" step="1" value="34" title="Drag sideways to scrub, click to type">
-        </div>
-        <div class="hud-row">
-          <span class="hud-label">Pan</span>
-          <input type="number" class="hud-scrub" id="hudPan" step="1" value="45" title="Drag sideways to scrub, click to type">
-        </div>
-        <div class="hud-row">
-          <span class="hud-label">Lateral</span>
-          <input type="number" class="hud-scrub" id="hudLateral" step="0.05" value="0.00" title="Drag sideways to scrub, click to type">
-        </div>
-        <div class="hud-row">
-          <span class="hud-label">Lens</span>
-          <button class="hud-lens-btn" id="hudLensPrev">‹</button>
-          <span class="hud-val" id="hudLensVal">35mm</span>
-          <button class="hud-lens-btn" id="hudLensNext">›</button>
-        </div>
-      </div>
-      <button id="camHudToggle" title="Show/hide camera HUD">CAMERA</button>
       <div id="displayHud">
         <div class="hud-row" style="justify-content:space-between">
           <span class="hud-label" style="width:auto">Display</span>
@@ -655,7 +610,10 @@
           <input type="checkbox" id="directionArrowsToggle"> Facing-direction arrows
         </label>
         <label style="display:flex; align-items:center; gap:6px">
-          <input type="checkbox" id="measurementsToggle"> Distance from camera (per object)
+          <input type="checkbox" id="heightMeasureToggle"> Height (per object)
+        </label>
+        <label style="display:flex; align-items:center; gap:6px">
+          <input type="checkbox" id="distanceMeasureToggle"> Distance from camera (per object)
         </label>
       </div>
       <button id="displayHudToggle" title="Show/hide display HUD">DISPLAY</button>
@@ -700,13 +658,61 @@
       <button id="bgHudToggle" title="Show/hide background HUD">BACKGROUND</button>
       <div id="charHud" class="hidden">
         <div class="hud-row" style="justify-content:space-between">
-          <span class="hud-label" style="width:auto">Object</span>
+          <span class="hud-label" id="paramHudTitle" style="width:auto">Object</span>
           <button class="hud-lens-btn" id="charHudClose" style="width:20px" title="Hide HUD">×</button>
+        </div>
+        <div id="camFieldsBlock" style="display:none; flex-direction:column; gap:11px">
+          <div class="hud-row">
+            <span class="hud-label">Height</span>
+            <input type="number" class="hud-scrub" id="hudHeight" step="0.05" value="1.00" title="Drag sideways to scrub, click to type">
+          </div>
+          <div class="hud-row">
+            <span class="hud-label">Tilt</span>
+            <input type="number" class="hud-scrub" id="hudTilt" step="1" value="34" title="Drag sideways to scrub, click to type">
+          </div>
+          <div class="hud-row">
+            <span class="hud-label">Pan</span>
+            <input type="number" class="hud-scrub" id="hudPan" step="1" value="45" title="Drag sideways to scrub, click to type">
+          </div>
+          <div class="hud-row">
+            <span class="hud-label">Lateral</span>
+            <input type="number" class="hud-scrub" id="hudLateral" step="0.05" value="0.00" title="Drag sideways to scrub, click to type">
+          </div>
+          <div class="hud-row">
+            <span class="hud-label">Lens</span>
+            <button class="hud-lens-btn" id="hudLensPrev">‹</button>
+            <span class="hud-val" id="hudLensVal">35mm</span>
+            <button class="hud-lens-btn" id="hudLensNext">›</button>
+          </div>
+        </div>
+        <div class="row align" id="sizeRow" style="display:none">
+          <span class="label-sm">Height</span>
+          <input type="number" class="val-input" id="sizeLabel" step="0.01" value="1.70">
+        </div>
+        <div class="row align" id="scaleRow" style="display:none; flex-direction:column; align-items:stretch; gap:6px">
+          <div class="row align">
+            <span class="label-sm">Size X</span>
+            <input type="number" class="val-input" id="scaleXLabel" step="0.01" value="1">
+          </div>
+          <div class="row align">
+            <span class="label-sm">Size Y</span>
+            <input type="number" class="val-input" id="scaleYLabel" step="0.01" value="1">
+          </div>
+          <div class="row align">
+            <span class="label-sm">Size Z</span>
+            <input type="number" class="val-input" id="scaleZLabel" step="0.01" value="1">
+          </div>
         </div>
         <div class="row align" id="colorRow" style="display:none">
           <span class="label-sm">Color</span>
           <input type="color" id="objColor" value="#d98e4a" style="flex:1; height:28px; padding:2px; cursor:pointer;">
         </div>
+        <label id="objHeightMeasureRow" style="display:none; align-items:center; gap:6px">
+          <input type="checkbox" id="objHeightMeasureToggle" checked> Show height
+        </label>
+        <label id="objDistanceMeasureRow" style="display:none; align-items:center; gap:6px">
+          <input type="checkbox" id="objDistanceMeasureToggle" checked> Show distance
+        </label>
         <div class="row align" id="propSwapRow" style="display:none" title="Replace this object's shape, keeping its position, rotation, name, lock state and keyframes">
           <span class="label-sm">Swap to</span>
           <select id="propSwapSelect" style="flex:1">
@@ -771,7 +777,7 @@
           </div>
         </div>
       </div>
-      <button id="charHudToggle" title="Show/hide object HUD">OBJECT</button>
+      <button id="charHudToggle" title="Show/hide parameter HUD">OBJECT</button>
     </div>
     <div id="viewsDivider"></div>
     <div id="topview-wrap">
@@ -807,6 +813,7 @@
 
 <div id="panel">
   <button id="collapseAllBtn">Collapse all sections</button>
+  <button class="danger" id="clearSceneBtn" title="Remove all characters and objects, keeping the camera and timeline as they are">Clear scene</button>
   <button class="danger" id="resetAllBtnTop" style="margin-bottom:10px">Reset all (default scene)</button>
   <section>
     <h2>Frame</h2>
@@ -1086,6 +1093,10 @@
     'Shots':      { color:'#ef4444', svg:'<path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/>' },
     'Export':     { color:'#6366f1', svg:'<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>' }
   };
+
+  // Same line-icon language as the section headers above, reused for scene
+  // folders in the Shots list — colored to match that section's accent.
+  const FOLDER_ICON_SVG = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>';
 
   function hexToRgba(hex, a){
     const n = parseInt(hex.slice(1), 16);
@@ -1599,10 +1610,12 @@
     nameTagSprites.forEach(entry => { entry.sprite.visible = show; });
   }
 
-  // ---------- Distance measurements: live "X.X m" label per character/object,
-  // showing straight-line distance from the camera. Recomputed every frame
-  // since it changes as the camera or the object moves, unlike a name tag.
-  let measurementsOn = false;
+  // ---------- Measurements: live height/distance label per character/object.
+  // Height and distance are independent toggles, both globally (Display HUD)
+  // and per-object (Object HUD) — an object's label shows whichever of the
+  // two are currently on, or nothing at all if both are off.
+  let heightMeasureOn = false;
+  let distanceMeasureOn = false;
   const measurementSprites = new Map(); // object -> { sprite, text }
   const measurementTmpBox = new THREE.Box3();
   const measurementTmpCenter = new THREE.Vector3();
@@ -1621,12 +1634,28 @@
         measurementSprites.delete(obj);
       }
     }
-    if (!measurementsOn) return;
+    if (!heightMeasureOn && !distanceMeasureOn) return;
     allObjs.forEach(obj => {
+      const showHeight = heightMeasureOn && obj.userData.heightMeasureOn !== false;
+      const showDistance = distanceMeasureOn && obj.userData.distanceMeasureOn !== false;
+      if (!showHeight && !showDistance){
+        const entry = measurementSprites.get(obj);
+        if (entry){ disposeMeasurement(entry); measurementSprites.delete(obj); }
+        return;
+      }
       boundsExcludingHelpers(obj, measurementTmpBox);
       measurementTmpBox.getCenter(measurementTmpCenter);
-      const dist = camera.position.distanceTo(measurementTmpCenter);
-      const text = toUnitValue(dist).toFixed(sizeUnit === 'm' ? 1 : 0) + ' ' + sizeUnit;
+      const decimals = sizeUnit === 'm' ? 1 : 0;
+      const parts = [];
+      if (showHeight){
+        const height = measurementTmpBox.max.y - measurementTmpBox.min.y;
+        parts.push(toUnitValue(height).toFixed(decimals) + sizeUnit + ' tall');
+      }
+      if (showDistance){
+        const dist = camera.position.distanceTo(measurementTmpCenter);
+        parts.push(toUnitValue(dist).toFixed(decimals) + sizeUnit + ' away');
+      }
+      const text = parts.join(' · ');
       let entry = measurementSprites.get(obj);
       if (!entry || entry.text !== text){
         if (entry) disposeMeasurement(entry);
@@ -1647,7 +1676,7 @@
   }
 
   function setMeasurementsVisible(restoreLive){
-    const show = restoreLive ? measurementsOn : false;
+    const show = restoreLive ? (heightMeasureOn || distanceMeasureOn) : false;
     measurementSprites.forEach(entry => { entry.sprite.visible = show; });
   }
 
@@ -1904,14 +1933,41 @@
     updateCameraFromSpherical();
     autoKeyField('camera', 'lateral');
   });
-  document.getElementById('camHudClose').onclick = () => {
-    document.getElementById('camHud').classList.add('hidden');
-    document.getElementById('camHudToggle').classList.add('visible');
+  // Character height and per-axis prop scale, in the Object HUD — same
+  // generic read/apply/auto-key path the timeline's inline fields use, so
+  // both stay in sync and either one can key an animated parameter.
+  document.getElementById('objHeightMeasureToggle').onchange = (e) => {
+    if (!selected || selected === 'camera') return;
+    selected.userData.heightMeasureOn = e.target.checked;
   };
-  document.getElementById('camHudToggle').onclick = () => {
-    document.getElementById('camHud').classList.remove('hidden');
-    document.getElementById('camHudToggle').classList.remove('visible');
+  document.getElementById('objDistanceMeasureToggle').onchange = (e) => {
+    if (!selected || selected === 'camera') return;
+    selected.userData.distanceMeasureOn = e.target.checked;
   };
+  makeScrubbable(document.getElementById('sizeLabel'), 0.005, (v) => {
+    if (!selected || selected === 'camera') return;
+    applyDisplayFieldValue(selected, 'size', v);
+    refreshTrajectory();
+    autoKeyField(selected, 'size');
+  }, 2);
+  makeScrubbable(document.getElementById('scaleXLabel'), 0.01, (v) => {
+    if (!selected || selected === 'camera') return;
+    applyDisplayFieldValue(selected, 'scaleX', v);
+    refreshTrajectory();
+    autoKeyField(selected, 'scaleX');
+  }, 2);
+  makeScrubbable(document.getElementById('scaleYLabel'), 0.01, (v) => {
+    if (!selected || selected === 'camera') return;
+    applyDisplayFieldValue(selected, 'scaleY', v);
+    refreshTrajectory();
+    autoKeyField(selected, 'scaleY');
+  }, 2);
+  makeScrubbable(document.getElementById('scaleZLabel'), 0.01, (v) => {
+    if (!selected || selected === 'camera') return;
+    applyDisplayFieldValue(selected, 'scaleZ', v);
+    refreshTrajectory();
+    autoKeyField(selected, 'scaleZ');
+  }, 2);
   document.getElementById('displayHudClose').onclick = () => {
     document.getElementById('displayHud').classList.add('hidden');
     document.getElementById('displayHudToggle').classList.add('visible');
@@ -1928,6 +1984,13 @@
     document.getElementById('charHud').classList.remove('hidden');
     document.getElementById('charHudToggle').classList.remove('visible');
   };
+  // All HUDs start collapsed to pills — nothing floats over the view until
+  // the user asks for it, even though a prop/character is auto-selected
+  // when the starter scene is built.
+  function closeAllHuds(){
+    ['displayHud','charHud','bgHud'].forEach(id => document.getElementById(id).classList.add('hidden'));
+    ['displayHudToggle','charHudToggle','bgHudToggle'].forEach(id => document.getElementById(id).classList.add('visible'));
+  }
   document.getElementById('bgHudClose').onclick = () => {
     document.getElementById('bgHud').classList.add('hidden');
     document.getElementById('bgHudToggle').classList.add('visible');
@@ -2292,8 +2355,8 @@
   };
 
   const PROP_SIZES = {
-    car:     { w:2.0, h:1.5, d:4.6, color:0x5b8bd9 },
-    bus:     { w:2.5, h:3.0, d:9.0, color:0xd9c34a },
+    car:     { w:1.85, h:1.5, d:4.5, color:0x5b8bd9 },
+    bus:     { w:2.55, h:3.2, d:12.0, color:0xd9c34a },
     wall:    { w:4.0, h:2.5, d:0.2, color:0x8a8d92 },
     house:   { w:6.0, h:4.5, d:7.0, color:0xb08968 },
     table:   { w:1.4, h:0.75, d:0.8, color:0x8a6a4a },
@@ -2301,7 +2364,7 @@
     cube:    { w:1, h:1, d:1, color:0x5bc9a8 },
     pyramid: { w:1, h:1, d:1, color:0xd6a24a },
     cage:    { w:1, h:1, d:1, color:0xcccccc },
-    door:    { w:0.9, h:2.1, d:0.06, color:0x8a5a34 },
+    door:    { w:0.9, h:2.1, d:0.06, color:0x7a2e2e },
     tree:    { w:1.8, h:3.8, d:1.8, color:0x4a8f4a }
   };
 
@@ -2334,24 +2397,50 @@
   // + cabin block (offset toward the rear, leaving a longer hood up front)
   // gives it an actual silhouette, and lines up with the facing-direction
   // arrow (which points toward local +Z, i.e. the hood end).
+  const TIRE_MAT = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.9 });
+
+  // Four wheel cylinders under a vehicle's body, at the given ground
+  // clearance/radius — not tied to userData.mat, so recoloring the body
+  // never affects the tires. wheelR also determines how much clearance the
+  // caller needs to leave between the body's bottom and the ground.
+  function addWheels(group, size, wheelR, axleZFrac){
+    const wheelWidth = size.w * 0.11;
+    const wheelGeo = new THREE.CylinderGeometry(wheelR, wheelR, wheelWidth, 14);
+    wheelGeo.rotateZ(Math.PI / 2);
+    const xOff = size.w / 2 - wheelWidth * 0.35;
+    const zOff = size.d / 2 * axleZFrac;
+    [[xOff, zOff], [-xOff, zOff], [xOff, -zOff], [-xOff, -zOff]].forEach(([x, z]) => {
+      const wheel = new THREE.Mesh(wheelGeo, TIRE_MAT);
+      wheel.position.set(x, -size.h / 2 + wheelR, z);
+      wheel.castShadow = true;
+      group.add(wheel);
+    });
+  }
+
   function buildCarGroup(color){
     const size = PROP_SIZES.car;
     const mat = new THREE.MeshStandardMaterial({ color, roughness:0.6, flatShading:true });
     const group = new THREE.Group();
 
-    const bodyH = size.h * 0.5;
+    const wheelR = size.h * 0.16;
+    const clearance = wheelR * 0.9;
+    const stackH = size.h - clearance;
+    const bodyH = stackH * 0.5;
+    const bodyBottom = -size.h / 2 + clearance;
     const body = new THREE.Mesh(new THREE.BoxGeometry(size.w, bodyH, size.d), mat);
-    body.position.y = -size.h / 2 + bodyH / 2;
+    body.position.y = bodyBottom + bodyH / 2;
     body.castShadow = true;
     group.add(body);
 
     const cabinW = size.w * 0.74;
-    const cabinH = size.h * 0.5;
+    const cabinH = stackH * 0.5;
     const cabinD = size.d * 0.4;
     const cabin = new THREE.Mesh(new THREE.BoxGeometry(cabinW, cabinH, cabinD), mat);
-    cabin.position.set(0, -size.h / 2 + bodyH + cabinH / 2, -size.d * 0.12);
+    cabin.position.set(0, bodyBottom + bodyH + cabinH / 2, -size.d * 0.12);
     cabin.castShadow = true;
     group.add(cabin);
+
+    addWheels(group, size, wheelR, 0.6);
 
     group.userData.mat = mat;
     return group;
@@ -2364,18 +2453,22 @@
     const mat = new THREE.MeshStandardMaterial({ color, roughness:0.6, flatShading:true });
     const group = new THREE.Group();
 
+    const wheelR = size.h * 0.1;
+    const clearance = wheelR * 0.9;
     const skirtH = size.h * 0.12;
     const skirt = new THREE.Mesh(new THREE.BoxGeometry(size.w, skirtH, size.d), mat);
-    skirt.position.y = -size.h / 2 + skirtH / 2;
+    skirt.position.y = -size.h / 2 + clearance + skirtH / 2;
     skirt.castShadow = true;
     group.add(skirt);
 
-    const bodyH = size.h - skirtH;
+    const bodyH = size.h - skirtH - clearance;
     const bodyD = size.d * 0.94;
     const body = new THREE.Mesh(new THREE.BoxGeometry(size.w * 0.96, bodyH, bodyD), mat);
-    body.position.set(0, -size.h / 2 + skirtH + bodyH / 2, -size.d * 0.03);
+    body.position.set(0, -size.h / 2 + clearance + skirtH + bodyH / 2, -size.d * 0.03);
     body.castShadow = true;
     group.add(body);
+
+    addWheels(group, size, wheelR, 0.68);
 
     group.userData.mat = mat;
     return group;
@@ -2470,6 +2563,25 @@
     objects.push(mesh);
     select(mesh);
     refreshList();
+    return mesh;
+  }
+
+  // The starter scene shown on first load and restored by "Reset all" — two
+  // characters plus a car, a tree and a door, so a new user immediately sees
+  // characters and props sharing a scene instead of an empty floor.
+  function buildDefaultScene(){
+    addCharacter(-0.8, 0);
+    addCharacter(0.8, -0.4);
+    // A small front-yard scene: a house with its door set into the front
+    // face (not floating on its own), a car in the driveway and a tree in
+    // the yard. The default camera looks toward +x/+z, so all of this sits
+    // further back (negative z) than the two characters in front of it.
+    const house = addProp('house', 0, -9);
+    const houseFrontZ = house.position.z + PROP_SIZES.house.d / 2;
+    addProp('door', 0, houseFrontZ - 0.05);
+    const car = addProp('car', 4, -3);
+    car.rotation.y = -Math.PI / 8;
+    addProp('tree', -4, -3);
   }
 
   function swapPropType(oldMesh, newType){
@@ -2528,6 +2640,24 @@
       const mat = isChar ? selected.userData.parts.mat : selected.userData.mat;
       document.getElementById('objColor').value = '#' + mat.color.getHexString();
     }
+    const objHeightMeasureRow = document.getElementById('objHeightMeasureRow');
+    const objDistanceMeasureRow = document.getElementById('objDistanceMeasureRow');
+    objHeightMeasureRow.style.display = isRotatable ? 'flex' : 'none';
+    objDistanceMeasureRow.style.display = isRotatable ? 'flex' : 'none';
+    if (isRotatable){
+      document.getElementById('objHeightMeasureToggle').checked = selected.userData.heightMeasureOn !== false;
+      document.getElementById('objDistanceMeasureToggle').checked = selected.userData.distanceMeasureOn !== false;
+    }
+    const sizeRow = document.getElementById('sizeRow');
+    sizeRow.style.display = isChar ? 'flex' : 'none';
+    if (isChar) document.getElementById('sizeLabel').value = readDisplayFieldValue(selected, 'size').toFixed(2);
+    const scaleRow = document.getElementById('scaleRow');
+    scaleRow.style.display = isProp ? 'flex' : 'none';
+    if (isProp){
+      document.getElementById('scaleXLabel').value = readDisplayFieldValue(selected, 'scaleX').toFixed(2);
+      document.getElementById('scaleYLabel').value = readDisplayFieldValue(selected, 'scaleY').toFixed(2);
+      document.getElementById('scaleZLabel').value = readDisplayFieldValue(selected, 'scaleZ').toFixed(2);
+    }
     const propSwapRow = document.getElementById('propSwapRow');
     propSwapRow.style.display = isProp ? 'flex' : 'none';
     if (isProp) document.getElementById('propSwapSelect').value = '';
@@ -2541,9 +2671,16 @@
       const j = selected.userData.joints;
       JOINT_NAMES.forEach(n => setJointSliderUI(n, j[n]));
     }
+    const isCam = selected === 'camera';
     const charHud = document.getElementById('charHud');
     const charHudToggle = document.getElementById('charHudToggle');
-    charHud.classList.toggle('hidden', !isRotatable);
+    document.getElementById('camFieldsBlock').style.display = isCam ? 'flex' : 'none';
+    document.getElementById('paramHudTitle').textContent = isCam ? 'Camera' : 'Object';
+    charHud.classList.toggle('showing-camera', isCam);
+    charHudToggle.classList.toggle('showing-camera', isCam);
+    charHudToggle.textContent = isCam ? 'CAMERA' : 'OBJECT';
+    charHudToggle.title = isCam ? 'Show/hide camera HUD' : 'Show/hide object HUD';
+    charHud.classList.toggle('hidden', !isRotatable && !isCam);
     charHudToggle.classList.remove('visible');
     refreshList();
     refreshTrajectory();
@@ -2978,9 +3115,16 @@
     directionArrowsOn = e.target.checked;
     directionArrowMeshes.forEach(m => { m.visible = directionArrowsOn; });
   };
-  document.getElementById('measurementsToggle').onchange = (e) => {
-    measurementsOn = e.target.checked;
-    if (!measurementsOn){
+  document.getElementById('heightMeasureToggle').onchange = (e) => {
+    heightMeasureOn = e.target.checked;
+    if (!heightMeasureOn && !distanceMeasureOn){
+      measurementSprites.forEach(disposeMeasurement);
+      measurementSprites.clear();
+    }
+  };
+  document.getElementById('distanceMeasureToggle').onchange = (e) => {
+    distanceMeasureOn = e.target.checked;
+    if (!heightMeasureOn && !distanceMeasureOn){
       measurementSprites.forEach(disposeMeasurement);
       measurementSprites.clear();
     }
@@ -4386,8 +4530,8 @@
     updateSunPosition();
 
     colorIdx = 0;
-    addCharacter(-0.8, 0);
-    addCharacter(0.8, -0.4);
+    buildDefaultScene();
+    closeAllHuds();
 
     clear360Background();
     scene.background = new THREE.Color(currentBg);
@@ -4518,7 +4662,7 @@
     folder.appendChild(noneOpt);
     existingScenes.forEach(name => {
       const opt = document.createElement('option');
-      opt.value = name; opt.textContent = '📁 ' + name;
+      opt.value = name; opt.textContent = name;
       folder.appendChild(opt);
     });
     const newOpt = document.createElement('option');
@@ -4576,18 +4720,23 @@
       const header = document.createElement('div');
       header.className = 'char-item';
       header.style.cursor = 'pointer';
-      header.style.fontWeight = '600';
       const arrow = document.createElement('span');
-      arrow.textContent = collapsed ? '▸' : '▾';
-      arrow.style.width = '14px'; arrow.style.flexShrink = '0';
+      arrow.className = 'kf-expand-arrow' + (collapsed ? '' : ' open');
+      arrow.textContent = '▸';
+      const icon = document.createElement('span');
+      icon.style.color = '#ef4444';
+      icon.style.display = 'inline-flex';
+      icon.style.flexShrink = '0';
+      icon.innerHTML = FOLDER_ICON_SVG;
       const label = document.createElement('div');
       label.className = 'label';
-      label.textContent = '📁 ' + sceneName;
+      label.style.fontWeight = '600';
+      label.textContent = sceneName;
       const count = document.createElement('div');
       count.className = 'pose-tag';
       const memberCount = shots.filter(s => s.scene === sceneName).length;
       count.textContent = memberCount + (memberCount === 1 ? ' shot' : ' shots');
-      header.append(arrow, label, count);
+      header.append(arrow, icon, label, count);
       header.onclick = () => {
         if (collapsedSceneFolders.has(sceneName)) collapsedSceneFolders.delete(sceneName);
         else collapsedSceneFolders.add(sceneName);
@@ -4762,6 +4911,11 @@
     resetAll();
   }
   document.getElementById('resetAllBtnTop').onclick = confirmResetAll;
+  document.getElementById('clearSceneBtn').onclick = () => {
+    if (!confirm('Remove all characters and objects (car, tree, house, etc.)? Camera and timeline settings are left as they are.\n\nThis can be undone with Ctrl/Cmd+Z.')) return;
+    pushUndo();
+    clearSceneObjects();
+  };
   document.getElementById('menuResetAll').onclick = () => { confirmResetAll(); mainMenu.classList.remove('open'); mainMenuBtn.classList.remove('open'); };
 
   // ---------- Recording ----------
@@ -5060,8 +5214,8 @@
 
   // ---------- Render loop ----------
   resize();
-  addCharacter(-0.8, 0);
-  addCharacter(0.8, -0.4);
+  buildDefaultScene();
+  closeAllHuds();
 
   function render(){
     if (skeletonViewOn){ scene.updateMatrixWorld(); characters.forEach(updateSkeletonRig); }
