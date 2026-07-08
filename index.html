@@ -2638,6 +2638,33 @@
     refreshKeyframePanel();
   }
 
+  // Populates the Object HUD's live-editable fields (color, height/scale,
+  // joints, measurement checkboxes) from the selected object's *current*
+  // state. Called on selection, but also needs re-running whenever the
+  // timeline playhead moves — an animated Size/Scale/joint track changes the
+  // object's actual values as you scrub, and this field would otherwise be
+  // left showing whatever it was at the moment of selection.
+  function syncObjectHudValues(){
+    const isChar = !!selected && selected !== 'camera' && !!selected.userData.parts;
+    const isProp = !!selected && selected !== 'camera' && !!selected.userData.isProp;
+    const isRotatable = isChar || isProp;
+    if (!isRotatable) return;
+    const mat = isChar ? selected.userData.parts.mat : selected.userData.mat;
+    document.getElementById('objColor').value = '#' + mat.color.getHexString();
+    document.getElementById('objHeightMeasureToggle').checked = selected.userData.heightMeasureOn !== false;
+    document.getElementById('objDistanceMeasureToggle').checked = selected.userData.distanceMeasureOn !== false;
+    if (isChar){
+      document.getElementById('sizeLabel').value = readDisplayFieldValue(selected, 'size').toFixed(2);
+      const j = selected.userData.joints;
+      JOINT_NAMES.forEach(n => setJointSliderUI(n, j[n]));
+    }
+    if (isProp){
+      document.getElementById('scaleXLabel').value = readDisplayFieldValue(selected, 'scaleX').toFixed(2);
+      document.getElementById('scaleYLabel').value = readDisplayFieldValue(selected, 'scaleY').toFixed(2);
+      document.getElementById('scaleZLabel').value = readDisplayFieldValue(selected, 'scaleZ').toFixed(2);
+    }
+  }
+
   function select(obj){
     selected = obj;
     const isChar = !!selected && selected !== 'camera' && !!selected.userData.parts;
@@ -2647,30 +2674,13 @@
     document.getElementById('delChar').disabled = !isDeletable;
     document.getElementById('delChar').textContent = (selected && selected.isCharGroup) ? 'Ungroup' : 'Delete';
     const isRotatable = isChar || isProp;
-    const colorRow = document.getElementById('colorRow');
-    colorRow.style.display = isRotatable ? 'flex' : 'none';
-    if (isRotatable){
-      const mat = isChar ? selected.userData.parts.mat : selected.userData.mat;
-      document.getElementById('objColor').value = '#' + mat.color.getHexString();
-    }
-    const objHeightMeasureRow = document.getElementById('objHeightMeasureRow');
-    const objDistanceMeasureRow = document.getElementById('objDistanceMeasureRow');
-    objHeightMeasureRow.style.display = isRotatable ? 'flex' : 'none';
-    objDistanceMeasureRow.style.display = isRotatable ? 'flex' : 'none';
-    if (isRotatable){
-      document.getElementById('objHeightMeasureToggle').checked = selected.userData.heightMeasureOn !== false;
-      document.getElementById('objDistanceMeasureToggle').checked = selected.userData.distanceMeasureOn !== false;
-    }
-    const sizeRow = document.getElementById('sizeRow');
-    sizeRow.style.display = isChar ? 'flex' : 'none';
-    if (isChar) document.getElementById('sizeLabel').value = readDisplayFieldValue(selected, 'size').toFixed(2);
-    const scaleRow = document.getElementById('scaleRow');
-    scaleRow.style.display = isProp ? 'flex' : 'none';
-    if (isProp){
-      document.getElementById('scaleXLabel').value = readDisplayFieldValue(selected, 'scaleX').toFixed(2);
-      document.getElementById('scaleYLabel').value = readDisplayFieldValue(selected, 'scaleY').toFixed(2);
-      document.getElementById('scaleZLabel').value = readDisplayFieldValue(selected, 'scaleZ').toFixed(2);
-    }
+    document.getElementById('colorRow').style.display = isRotatable ? 'flex' : 'none';
+    document.getElementById('objHeightMeasureRow').style.display = isRotatable ? 'flex' : 'none';
+    document.getElementById('objDistanceMeasureRow').style.display = isRotatable ? 'flex' : 'none';
+    document.getElementById('sizeRow').style.display = isChar ? 'flex' : 'none';
+    document.getElementById('scaleRow').style.display = isProp ? 'flex' : 'none';
+    document.getElementById('jointsRow').style.display = isChar ? 'flex' : 'none';
+    syncObjectHudValues();
     const propSwapRow = document.getElementById('propSwapRow');
     propSwapRow.style.display = isProp ? 'flex' : 'none';
     if (isProp) document.getElementById('propSwapSelect').value = '';
@@ -2678,12 +2688,6 @@
       const newType = e.target.value;
       if (newType && selected && selected.userData.isProp) swapPropType(selected, newType);
     };
-    const jointsRow = document.getElementById('jointsRow');
-    jointsRow.style.display = isChar ? 'flex' : 'none';
-    if (isChar){
-      const j = selected.userData.joints;
-      JOINT_NAMES.forEach(n => setJointSliderUI(n, j[n]));
-    }
     const charHud = document.getElementById('charHud');
     const charHudToggle = document.getElementById('charHudToggle');
     charHud.classList.toggle('hidden', !isRotatable);
@@ -3954,6 +3958,7 @@
     applyTimeline(currentTime);
     if (cameraDriveMode === 'path') applyCameraFollow(currentTime);
     else applyCameraKeyframes(currentTime);
+    syncObjectHudValues();
     updatePlayhead();
   }
 
