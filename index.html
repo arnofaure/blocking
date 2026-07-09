@@ -45,6 +45,13 @@
     --radius-lg: 10px;
   }
   * { box-sizing: border-box; }
+  /* Slim, dark scrollbars everywhere instead of the default OS chrome, to
+     match the rest of the minimalist UI. */
+  * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.22) transparent; }
+  *::-webkit-scrollbar { width:8px; height:8px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.22); border-radius:5px; }
+  *::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
   html, body { margin:0; padding:0; height:100%; overflow:hidden;
     font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
     font-size:13px;
@@ -428,7 +435,7 @@
   #kfToolbar button { width:auto; margin-bottom:0; padding:5px 10px; }
   #kfBody { flex:1; min-height:0; display:flex; flex-direction:row; }
   #kfLabels {
-    width:168px; flex-shrink:0; border-right:0.5px solid var(--panel-border);
+    width:225px; flex-shrink:0; border-right:0.5px solid var(--panel-border);
     display:flex; flex-direction:column; overflow-y:auto;
   }
   #kfLabels .kf-row-label.header { height:22px; flex-shrink:0; }
@@ -703,6 +710,24 @@
             <input type="number" class="val-input" id="scaleZLabel" step="0.01" value="1">
           </div>
         </div>
+        <div class="row align" id="charRotRow" style="display:none">
+          <span class="label-sm">Rotation</span>
+          <input type="number" class="val-input" id="charRotLabel" step="1" value="0">
+        </div>
+        <div class="row align" id="propRotRow" style="display:none; flex-direction:column; align-items:stretch; gap:6px">
+          <div class="row align">
+            <span class="label-sm">Rot X</span>
+            <input type="number" class="val-input" id="propRotXLabel" step="1" value="0">
+          </div>
+          <div class="row align">
+            <span class="label-sm">Rot Y</span>
+            <input type="number" class="val-input" id="propRotYLabel" step="1" value="0">
+          </div>
+          <div class="row align">
+            <span class="label-sm">Rot Z</span>
+            <input type="number" class="val-input" id="propRotZLabel" step="1" value="0">
+          </div>
+        </div>
         <div class="row align" id="colorRow" style="display:none">
           <span class="label-sm">Color</span>
           <input type="color" id="objColor" value="#d98e4a" style="flex:1; height:28px; padding:2px; cursor:pointer;">
@@ -776,6 +801,7 @@
             <input type="number" class="val-input" id="jointNeckLabel" min="-60" max="60" step="1" value="0">
           </div>
         </div>
+        <button class="danger" id="objDeleteBtn" style="margin-top:4px">Delete</button>
       </div>
       <button id="charHudToggle" title="Show/hide object HUD">OBJECT</button>
     </div>
@@ -1968,6 +1994,30 @@
     refreshTrajectory();
     autoKeyField(selected, 'scaleZ');
   }, 2);
+  makeScrubbable(document.getElementById('charRotLabel'), 0.5, (v) => {
+    if (!selected || selected === 'camera') return;
+    applyDisplayFieldValue(selected, 'rotY', v);
+    refreshTrajectory();
+    autoKeyField(selected, 'rotY');
+  }, 0);
+  makeScrubbable(document.getElementById('propRotXLabel'), 0.5, (v) => {
+    if (!selected || selected === 'camera') return;
+    applyDisplayFieldValue(selected, 'rotX', v);
+    refreshTrajectory();
+    autoKeyField(selected, 'rotX');
+  }, 0);
+  makeScrubbable(document.getElementById('propRotYLabel'), 0.5, (v) => {
+    if (!selected || selected === 'camera') return;
+    applyDisplayFieldValue(selected, 'rotY', v);
+    refreshTrajectory();
+    autoKeyField(selected, 'rotY');
+  }, 0);
+  makeScrubbable(document.getElementById('propRotZLabel'), 0.5, (v) => {
+    if (!selected || selected === 'camera') return;
+    applyDisplayFieldValue(selected, 'rotZ', v);
+    refreshTrajectory();
+    autoKeyField(selected, 'rotZ');
+  }, 0);
   document.getElementById('displayHudClose').onclick = () => {
     document.getElementById('displayHud').classList.add('hidden');
     document.getElementById('displayHudToggle').classList.add('visible');
@@ -2347,6 +2397,7 @@
     characters.push(root);
     select(root);
     refreshList();
+    return root;
   }
 
   let sizeUnit = 'm'; // 'm' | 'ft' | 'in'
@@ -2578,18 +2629,15 @@
   }
 
   // The starter scene shown on first load and restored by "Reset all" — two
-  // characters plus a car, a tree and a door, so a new user immediately sees
+  // characters plus a car, a tree and a house, so a new user immediately sees
   // characters and props sharing a scene instead of an empty floor.
   function buildDefaultScene(){
     addCharacter(-0.8, 0);
     addCharacter(0.8, -0.4);
-    // A small front-yard scene: a house with its door set into the front
-    // face (not floating on its own), a car in the driveway and a tree in
+    // A small front-yard scene: a house, a car in the driveway and a tree in
     // the yard. The default camera looks toward +x/+z, so all of this sits
     // further back (negative z) than the two characters in front of it.
     const house = addProp('house', 0, -9);
-    const houseFrontZ = house.position.z + PROP_SIZES.house.d / 2;
-    addProp('door', 0, houseFrontZ - 0.05);
     const car = addProp('car', 4, -3);
     car.rotation.y = -Math.PI / 8;
     addProp('tree', -4, -3);
@@ -2655,6 +2703,7 @@
     document.getElementById('objDistanceMeasureToggle').checked = selected.userData.distanceMeasureOn !== false;
     if (isChar){
       document.getElementById('sizeLabel').value = readDisplayFieldValue(selected, 'size').toFixed(2);
+      document.getElementById('charRotLabel').value = readDisplayFieldValue(selected, 'rotY').toFixed(0);
       const j = selected.userData.joints;
       JOINT_NAMES.forEach(n => setJointSliderUI(n, j[n]));
     }
@@ -2662,6 +2711,9 @@
       document.getElementById('scaleXLabel').value = readDisplayFieldValue(selected, 'scaleX').toFixed(2);
       document.getElementById('scaleYLabel').value = readDisplayFieldValue(selected, 'scaleY').toFixed(2);
       document.getElementById('scaleZLabel').value = readDisplayFieldValue(selected, 'scaleZ').toFixed(2);
+      document.getElementById('propRotXLabel').value = readDisplayFieldValue(selected, 'rotX').toFixed(0);
+      document.getElementById('propRotYLabel').value = readDisplayFieldValue(selected, 'rotY').toFixed(0);
+      document.getElementById('propRotZLabel').value = readDisplayFieldValue(selected, 'rotZ').toFixed(0);
     }
   }
 
@@ -2679,6 +2731,8 @@
     document.getElementById('objDistanceMeasureRow').style.display = isRotatable ? 'flex' : 'none';
     document.getElementById('sizeRow').style.display = isChar ? 'flex' : 'none';
     document.getElementById('scaleRow').style.display = isProp ? 'flex' : 'none';
+    document.getElementById('charRotRow').style.display = isChar ? 'flex' : 'none';
+    document.getElementById('propRotRow').style.display = isProp ? 'flex' : 'none';
     document.getElementById('jointsRow').style.display = isChar ? 'flex' : 'none';
     syncObjectHudValues();
     const propSwapRow = document.getElementById('propSwapRow');
@@ -2972,7 +3026,7 @@
       autoKeyJoints(selected);
     }, 0);
   });
-  document.getElementById('delChar').onclick = () => {
+  function deleteSelected(){
     if (!selected || selected === 'camera') return;
     if (selected.isCharGroup){
       pushUndo();
@@ -2991,7 +3045,59 @@
       if (g.members.length < 2) dissolveGroup(g);
     }
     select(null);
-  };
+  }
+  document.getElementById('delChar').onclick = deleteSelected;
+  document.getElementById('objDeleteBtn').onclick = deleteSelected;
+
+  // ---------- Copy / paste a character or prop (Ctrl/Cmd+C, Ctrl/Cmd+V) ----------
+  // A plain-data snapshot rather than a live object reference, so paste still
+  // works even if the original gets deleted (or edited) in between.
+  let clipboard = null;
+  function copySelected(){
+    if (!selected || selected === 'camera' || selected.isCharGroup) return;
+    const isChar = !!selected.userData.parts;
+    const mat = isChar ? selected.userData.parts.mat : selected.userData.mat;
+    clipboard = {
+      isChar,
+      type: isChar ? null : selected.userData.type,
+      name: selected.userData.name,
+      colorHex: mat.color.getHex(),
+      x: selected.position.x, z: selected.position.z,
+      rotation: { x: selected.rotation.x, y: selected.rotation.y, z: selected.rotation.z },
+      scale: { x: selected.scale.x, y: selected.scale.y, z: selected.scale.z },
+      heightOffset: selected.userData.heightOffset || 0,
+      joints: isChar ? { ...selected.userData.joints } : null,
+      keyframes: JSON.parse(JSON.stringify(selected.userData.keyframes || [])),
+      heightMeasureOn: selected.userData.heightMeasureOn,
+      distanceMeasureOn: selected.userData.distanceMeasureOn,
+    };
+  }
+  function pasteClipboard(){
+    if (!clipboard) return;
+    const c = clipboard;
+    const nx = c.x + 0.5, nz = c.z + 0.5;
+    let copy;
+    if (c.isChar){
+      copy = addCharacter(nx, nz);
+      copy.userData.parts.mat.color.setHex(c.colorHex);
+      JOINT_NAMES.forEach(n => setJoint(copy, n, c.joints[n]));
+    } else {
+      copy = addProp(c.type, nx, nz);
+      copy.userData.mat.color.setHex(c.colorHex);
+      copy.userData.heightOffset = c.heightOffset;
+    }
+    copy.rotation.set(c.rotation.x, c.rotation.y, c.rotation.z);
+    copy.scale.set(c.scale.x, c.scale.y, c.scale.z);
+    if (!c.isChar) updatePropY(copy);
+    copy.userData.name = c.name + ' copy';
+    copy.userData.keyframes = JSON.parse(JSON.stringify(c.keyframes));
+    copy.userData.heightMeasureOn = c.heightMeasureOn;
+    copy.userData.distanceMeasureOn = c.distanceMeasureOn;
+    select(copy);
+    refreshList();
+    refreshTrajectory();
+    refreshKeyframePanel();
+  }
 
   // frame / aspect ratio buttons
   document.querySelectorAll('.frame-btn').forEach(btn=>{
@@ -4013,6 +4119,11 @@
   function refreshKeyframePanel(){
     const labels = document.getElementById('kfLabels');
     const lanesWrap = document.getElementById('kfLanesWrap');
+    // Rebuilding tears down and re-adds every row, which otherwise resets
+    // the scroll position (e.g. clicking a parameter to expand/edit it would
+    // visibly jump the timeline back to the top) — restore it afterwards.
+    const savedLabelsScroll = labels.scrollTop;
+    const savedLanesScroll = lanesWrap.scrollTop;
     labels.querySelectorAll('.kf-row-label:not(.header)').forEach(el => el.remove());
     lanesWrap.querySelectorAll('.kf-lane').forEach(el => el.remove());
     document.getElementById('kfRulerEnd').textContent = timelineDuration.toFixed(1) + 's';
@@ -4180,6 +4291,8 @@
     });
 
     updatePlayhead();
+    labels.scrollTop = savedLabelsScroll;
+    lanesWrap.scrollTop = savedLanesScroll;
   }
 
   function updatePlayhead(){
@@ -4265,6 +4378,16 @@
     }
     const tag = (document.activeElement && document.activeElement.tagName) || '';
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    if (mod && e.code === 'KeyC'){
+      e.preventDefault();
+      copySelected();
+      return;
+    }
+    if (mod && e.code === 'KeyV'){
+      e.preventDefault();
+      pasteClipboard();
+      return;
+    }
     if (e.code === 'Space'){
       e.preventDefault();
       tlPlay.click();
