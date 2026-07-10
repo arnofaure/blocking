@@ -776,22 +776,18 @@
             <input type="number" class="val-input" id="scaleZLabel" step="0.01" value="1">
           </div>
         </div>
-        <div class="row align" id="charRotRow" style="display:none">
-          <span class="label-sm">Rotation</span>
-          <input type="number" class="val-input" id="charRotLabel" step="1" value="0">
-        </div>
-        <div class="row align" id="propRotRow" style="display:none; flex-direction:column; align-items:stretch; gap:6px">
+        <div class="row align" id="objRotRow" style="display:none; flex-direction:column; align-items:stretch; gap:6px">
           <div class="row align">
             <span class="label-sm">Rot X</span>
-            <input type="number" class="val-input" id="propRotXLabel" step="1" value="0">
+            <input type="number" class="val-input" id="objRotXLabel" step="1" value="0">
           </div>
           <div class="row align">
             <span class="label-sm">Rot Y</span>
-            <input type="number" class="val-input" id="propRotYLabel" step="1" value="0">
+            <input type="number" class="val-input" id="objRotYLabel" step="1" value="0">
           </div>
           <div class="row align">
             <span class="label-sm">Rot Z</span>
-            <input type="number" class="val-input" id="propRotZLabel" step="1" value="0">
+            <input type="number" class="val-input" id="objRotZLabel" step="1" value="0">
           </div>
         </div>
         <div class="row align" id="colorRow" style="display:none">
@@ -881,6 +877,8 @@
   <div id="keyframePanel">
     <div id="kfToolbar">
       <button id="tlPlay">▶ Play</button>
+      <button id="tlPrevKey" title="Jump to the previous keyframe (Alt+Left)">◀ Key</button>
+      <button id="tlNextKey" title="Jump to the next keyframe (Alt+Right)">Key ▶</button>
       <button id="tlAddKey">+ Keyframe</button>
       <button class="danger" id="tlDelKey">Delete keyframe</button>
       <button id="tlCutLayer" title="Split the selected layer into two independently-trimmed segments at the playhead">✂ Cut</button>
@@ -2061,25 +2059,19 @@
     refreshTrajectory();
     autoKeyField(selected, 'scaleZ');
   }, 2);
-  makeScrubbable(document.getElementById('charRotLabel'), 0.5, (v) => {
-    if (!selected || selected === 'camera') return;
-    applyDisplayFieldValue(selected, 'rotY', v);
-    refreshTrajectory();
-    autoKeyField(selected, 'rotY');
-  }, 0);
-  makeScrubbable(document.getElementById('propRotXLabel'), 0.5, (v) => {
+  makeScrubbable(document.getElementById('objRotXLabel'), 0.5, (v) => {
     if (!selected || selected === 'camera') return;
     applyDisplayFieldValue(selected, 'rotX', v);
     refreshTrajectory();
     autoKeyField(selected, 'rotX');
   }, 0);
-  makeScrubbable(document.getElementById('propRotYLabel'), 0.5, (v) => {
+  makeScrubbable(document.getElementById('objRotYLabel'), 0.5, (v) => {
     if (!selected || selected === 'camera') return;
     applyDisplayFieldValue(selected, 'rotY', v);
     refreshTrajectory();
     autoKeyField(selected, 'rotY');
   }, 0);
-  makeScrubbable(document.getElementById('propRotZLabel'), 0.5, (v) => {
+  makeScrubbable(document.getElementById('objRotZLabel'), 0.5, (v) => {
     if (!selected || selected === 'camera') return;
     applyDisplayFieldValue(selected, 'rotZ', v);
     refreshTrajectory();
@@ -2770,7 +2762,6 @@
     document.getElementById('objDistanceMeasureToggle').checked = selected.userData.distanceMeasureOn !== false;
     if (isChar){
       document.getElementById('sizeLabel').value = readDisplayFieldValue(selected, 'size').toFixed(2);
-      document.getElementById('charRotLabel').value = readDisplayFieldValue(selected, 'rotY').toFixed(0);
       const j = selected.userData.joints;
       JOINT_NAMES.forEach(n => setJointSliderUI(n, j[n]));
     }
@@ -2778,9 +2769,11 @@
       document.getElementById('scaleXLabel').value = readDisplayFieldValue(selected, 'scaleX').toFixed(2);
       document.getElementById('scaleYLabel').value = readDisplayFieldValue(selected, 'scaleY').toFixed(2);
       document.getElementById('scaleZLabel').value = readDisplayFieldValue(selected, 'scaleZ').toFixed(2);
-      document.getElementById('propRotXLabel').value = readDisplayFieldValue(selected, 'rotX').toFixed(0);
-      document.getElementById('propRotYLabel').value = readDisplayFieldValue(selected, 'rotY').toFixed(0);
-      document.getElementById('propRotZLabel').value = readDisplayFieldValue(selected, 'rotZ').toFixed(0);
+    }
+    if (isRotatable){
+      document.getElementById('objRotXLabel').value = readDisplayFieldValue(selected, 'rotX').toFixed(0);
+      document.getElementById('objRotYLabel').value = readDisplayFieldValue(selected, 'rotY').toFixed(0);
+      document.getElementById('objRotZLabel').value = readDisplayFieldValue(selected, 'rotZ').toFixed(0);
     }
   }
 
@@ -2798,8 +2791,7 @@
     document.getElementById('objDistanceMeasureRow').style.display = isRotatable ? 'flex' : 'none';
     document.getElementById('sizeRow').style.display = isChar ? 'flex' : 'none';
     document.getElementById('scaleRow').style.display = isProp ? 'flex' : 'none';
-    document.getElementById('charRotRow').style.display = isChar ? 'flex' : 'none';
-    document.getElementById('propRotRow').style.display = isProp ? 'flex' : 'none';
+    document.getElementById('objRotRow').style.display = isRotatable ? 'flex' : 'none';
     document.getElementById('jointsRow').style.display = isChar ? 'flex' : 'none';
     syncObjectHudValues();
     const propSwapRow = document.getElementById('propSwapRow');
@@ -3390,6 +3382,7 @@
   // same delta instead of snapping to the cursor's floor point.
   function applyDragMove(obj, pt, lastPt){
     if (obj.isCharGroup){
+      if (!lastPt) return; // no valid reference point yet (see floorPointAt) — skip this frame rather than NaN-ing every member
       const dx = pt.x - lastPt.x, dz = pt.z - lastPt.z;
       obj.members.forEach(m => { m.position.x += dx; m.position.z += dz; });
     } else {
@@ -3421,11 +3414,21 @@
     return null;
   }
 
+  // Max plausible distance from the camera for a floor pick — beyond this,
+  // the ray is grazing the ground plane at too shallow an angle to trust.
+  // Ray/plane intersection divides by how parallel the ray is to the plane,
+  // so a near-horizontal look angle (easy to hit while orbiting the main
+  // perspective view — the top view is immune since it always looks
+  // straight down) sends that intersection shooting off far away instead of
+  // failing outright, which otherwise reads as the dragged/clicked object
+  // teleporting off to who-knows-where instead of following the cursor.
+  const FLOOR_PICK_MAX_DIST = 80;
   function floorPointAt(cam, canvasEl, e){
     setMouseAt(e, canvasEl);
     raycaster.setFromCamera(mouse, cam);
     const pt = new THREE.Vector3();
-    raycaster.ray.intersectPlane(floorPlane, pt);
+    const hit = raycaster.ray.intersectPlane(floorPlane, pt);
+    if (!hit || pt.distanceTo(cam.position) > FLOOR_PICK_MAX_DIST) return null;
     return pt;
   }
 
@@ -3582,16 +3585,19 @@
       updateCameraFromSpherical();
     } else if (mode === 'dragChar' && dragChar){
       const pt = floorPoint(e);
+      if (!pt) return; // grazing-angle raycast (see floorPointAt) — hold position rather than jumping somewhere far off
       applyDragMove(dragChar, pt, dragLastPt);
       dragLastPt = pt;
     } else if (mode === 'dragKf' && dragKf){
       const pt = floorPoint(e);
+      if (!pt) return;
       dragKf.x = pt.x;
       dragKf.z = pt.z;
       refreshTrajectory();
       setCurrentTime(currentTime);
     } else if (mode === 'drawPath'){
       const pt = floorPoint(e);
+      if (!pt) return;
       const last = pathPoints[pathPoints.length - 1];
       if (!last || Math.hypot(pt.x - last.x, pt.z - last.z) > 0.15){
         pathPoints.push({ x: pt.x, z: pt.z });
@@ -3649,7 +3655,9 @@
     { key:'x', label:'X', fields:['x'] },
     { key:'y', label:'Y (height)', fields:['y'] },
     { key:'z', label:'Z', fields:['z'] },
+    { key:'rotX', label:'Rotation X', fields:['rotX'] },
     { key:'rotY', label:'Rotation Y', fields:['rotY'] },
+    { key:'rotZ', label:'Rotation Z', fields:['rotZ'] },
     { key:'size', label:'Size', fields:['size'] },
     { key:'pose', label:'Pose', fields:['pose'] },
     { key:'joints', label:'Joints', fields:[], nested:'joints' }
@@ -4635,6 +4643,30 @@
   };
   document.getElementById('tlCutLayer').onclick = cutSelectedAtPlayhead;
 
+  // ---------- Prev/next keyframe navigation ----------
+  // With something selected, steps along just that track's own keyframes
+  // (or the camera's). With nothing selected, steps along the union of
+  // every track's keyframe times, so the shortcut is still useful for
+  // getting a sense of the whole shot's beats.
+  function allKeyframeTimes(){
+    if (selected) return getKeyframes(selected).map(k => k.t);
+    const times = new Set(cameraKeyframes.map(k => k.t));
+    characters.forEach(c => (c.userData.keyframes || []).forEach(k => times.add(k.t)));
+    objects.forEach(o => (o.userData.keyframes || []).forEach(k => times.add(k.t)));
+    return [...times];
+  }
+  function jumpToKeyframe(dir){
+    const times = allKeyframeTimes().sort((a, b) => a - b);
+    if (!times.length) return;
+    const EPS = 1e-4;
+    const next = dir > 0
+      ? times.find(t => t > currentTime + EPS)
+      : [...times].reverse().find(t => t < currentTime - EPS);
+    if (next !== undefined) setCurrentTime(next);
+  }
+  document.getElementById('tlPrevKey').onclick = () => jumpToKeyframe(-1);
+  document.getElementById('tlNextKey').onclick = () => jumpToKeyframe(1);
+
   let lastPlayTs = 0;
   function playStep(now){
     if (!playing) return;
@@ -4708,6 +4740,11 @@
       }
     } else if (e.code === 'KeyK'){
       if (selected) document.getElementById('tlAddKey').click();
+    } else if (e.altKey && (e.code === 'ArrowLeft' || e.code === 'ArrowRight')){
+      // Alt+Left/Right rather than the bare arrows — those already nudge the
+      // selected object's position (see below).
+      e.preventDefault();
+      jumpToKeyframe(e.code === 'ArrowRight' ? 1 : -1);
     } else if (e.code === 'ArrowLeft' || e.code === 'ArrowRight' || e.code === 'ArrowUp' || e.code === 'ArrowDown'){
       if (!selected) return;
       e.preventDefault();
@@ -4855,7 +4892,8 @@
         follow: followPath
       },
       characters: characters.map(root => ({
-        x: root.position.x, y: root.position.y, z: root.position.z, rotY: root.rotation.y,
+        x: root.position.x, y: root.position.y, z: root.position.z,
+        rotX: root.rotation.x, rotY: root.rotation.y, rotZ: root.rotation.z,
         pose: root.userData.pose, name: root.userData.name, size: root.scale.x,
         color: root.userData.parts.mat.color.getHex(),
         joints: {...root.userData.joints},
@@ -5046,7 +5084,9 @@
       root.userData.keyframes = c.keyframes.map(k => ({...k, joints: k.joints ? {...k.joints} : undefined}));
       applyPose(root, c.pose);
       root.userData.parts.mat.color.setHex(c.color);
+      if (typeof c.rotX === 'number') root.rotation.x = c.rotX;
       if (typeof c.rotY === 'number') root.rotation.y = c.rotY;
+      if (typeof c.rotZ === 'number') root.rotation.z = c.rotZ;
       if (typeof c.y === 'number') root.position.y = c.y;
       if (typeof c.size === 'number' && c.size > 0) root.scale.setScalar(c.size);
       JOINT_NAMES.forEach(n => setJoint(root, n, (c.joints && c.joints[n]) || 0));
@@ -5704,7 +5744,20 @@
     if (recording && recordTrack){
       const now = performance.now();
       if (now - lastCaptureTs >= recordFrameMs){
-        lastCaptureTs = now;
+        // Carry the remainder forward (+=) instead of snapping to "now" —
+        // rAF only fires at the display's refresh rate (commonly 60Hz), so
+        // resetting the clock every capture quantizes the achievable rate to
+        // a divisor of that refresh rate: at 60Hz, a 24fps target's 41.7ms
+        // period never lands exactly on a 16.7ms tick, so snapping-to-now
+        // always waits for a full extra tick and settles at a steady 20fps
+        // (50ms, i.e. every 3rd tick) instead of alternating 2/3 ticks to
+        // average the requested rate. Carrying the leftover time lets that
+        // alternation happen, so the long-run average matches the target.
+        lastCaptureTs += recordFrameMs;
+        // ...but after a real stall (tab backgrounded, GPU hiccup) that
+        // leftover could be huge — cap the catch-up to one frame so we don't
+        // machine-gun a burst of duplicate-looking frames trying to recover.
+        if (now - lastCaptureTs >= recordFrameMs) lastCaptureTs = now;
         if (recordCropCtx){
           const r = recordCropRect;
           recordCropCtx.drawImage(canvas, r.sx, r.sy, r.sw, r.sh, 0, 0, r.sw, r.sh);
