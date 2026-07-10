@@ -790,6 +790,10 @@
             <input type="number" class="val-input" id="objRotZLabel" step="1" value="0">
           </div>
         </div>
+        <div class="row align" id="mountainNoiseRow" style="display:none" title="How bumpy the terrain is — the shape itself stays fixed (same seed) once placed, this just scales that fixed noise up or down">
+          <span class="label-sm">Noise</span>
+          <input type="number" class="val-input" id="mountainNoiseLabel" min="0" step="1" value="100">
+        </div>
         <div class="row align" id="colorRow" style="display:none">
           <span class="label-sm">Color</span>
           <input type="color" id="objColor" value="#d98e4a" style="flex:1; height:28px; padding:2px; cursor:pointer;">
@@ -814,6 +818,7 @@
             <option value="sphere">Sphere</option>
             <option value="cube">Cube</option>
             <option value="pyramid">Pyramid</option>
+            <option value="mountain">Mountain</option>
             <option value="cage">Cage</option>
           </select>
         </div>
@@ -961,6 +966,9 @@
       <button id="addSphere">+ Sphere</button>
       <button id="addCube">+ Cube</button>
       <button id="addPyramid">+ Pyramid</button>
+    </div>
+    <div class="row" style="margin-top:6px">
+      <button id="addMountain" title="A low-poly peak with a fixed (non-animated) bumpy noise, different every time one is added">+ Mountain</button>
     </div>
     <div class="row" style="margin-top:6px">
       <button id="addCage" title="Hollow box made of edges only — resize it to use as a car/cage frame with characters inside">+ Cage</button>
@@ -2077,6 +2085,10 @@
     refreshTrajectory();
     autoKeyField(selected, 'rotZ');
   }, 0);
+  makeScrubbable(document.getElementById('mountainNoiseLabel'), 1, (v) => {
+    if (!selected || selected === 'camera' || selected.userData.type !== 'mountain') return;
+    rebuildMountainGeometry(selected, Math.max(0, v / 100));
+  }, 0);
   document.getElementById('displayHudClose').onclick = () => {
     document.getElementById('displayHud').classList.add('hidden');
     document.getElementById('displayHudToggle').classList.add('visible');
@@ -2484,6 +2496,7 @@
     sphere:  { w:1, h:1, d:1, color:0xe0584a },
     cube:    { w:1, h:1, d:1, color:0x5bc9a8 },
     pyramid: { w:1, h:1, d:1, color:0xd6a24a },
+    mountain: { w:1, h:1, d:1, color:0x8a8577 },
     cage:    { w:1, h:1, d:1, color:0xcccccc },
     door:    { w:0.9, h:2.1, d:0.06, color:0x7a2e2e },
     tree:    { w:1.8, h:3.8, d:1.8, color:0x4a8f4a }
@@ -2638,6 +2651,48 @@
     return group;
   }
 
+  // Cheap deterministic "noise": a sum of a few sine waves at different
+  // frequencies, seeded by a per-object number. It's fixed (same seed ->
+  // same bumps every time, no per-frame jitter) without needing an actual
+  // Perlin/Simplex implementation — good enough for a stylized low-poly
+  // terrain look, not for anything that needs true gradient noise.
+  function ridgeNoise2D(x, z, seed){
+    return (
+      Math.sin(x * 1.7 + seed) * Math.cos(z * 1.3 + seed * 1.7) +
+      0.5 * Math.sin(x * 3.9 + seed * 2.3) * Math.cos(z * 4.1 + seed * 0.7) +
+      0.25 * Math.sin(x * 8.1 + seed * 3.1) * Math.cos(z * 7.7 + seed * 1.9)
+    ) / 1.75;
+  }
+
+  // A subdivided cone with each vertex's height bumped by ridgeNoise2D,
+  // sampled at that vertex's own (x,z) — so the base rim stays circular
+  // (no seam mismatch, no self-intersecting geometry) while the surface
+  // reads as bumpy terrain. The displacement tapers to zero near the apex
+  // so the peak stays a clean point instead of getting noisy too.
+  function buildMountainGeometry(seed, amount){
+    if (amount === undefined) amount = 1;
+    const geo = new THREE.ConeGeometry(0.65, 1, 10, 6);
+    const pos = geo.attributes.position;
+    const v = new THREE.Vector3();
+    for (let i = 0; i < pos.count; i++){
+      v.fromBufferAttribute(pos, i);
+      const heightFrac = v.y + 0.5; // 0 at base, 1 at apex
+      const taper = Math.pow(1 - heightFrac, 1.3);
+      pos.setY(i, v.y + ridgeNoise2D(v.x * 2.5, v.z * 2.5, seed) * 0.22 * taper * amount);
+    }
+    geo.computeVertexNormals();
+    return geo;
+  }
+
+  // Swaps in a freshly-built geometry for the current noise amount, keeping
+  // the object's fixed seed (and everything else about it) untouched — used
+  // both by the live Noise slider and by restoring a saved amount on load.
+  function rebuildMountainGeometry(mesh, amount){
+    mesh.userData.mountainNoise = amount;
+    mesh.geometry.dispose();
+    mesh.geometry = buildMountainGeometry(mesh.userData.mountainSeed, amount);
+  }
+
   // Primitives get a unit-size geometry so the Width/Height/Depth scale
   // sliders (which multiply, starting from 1) map directly to meters.
   function propGeometry(type, size){
@@ -2657,6 +2712,20 @@
     if (type === 'bus') return buildBusGroup(color);
     if (type === 'door') return buildDoorGroup(color);
     if (type === 'tree') return buildTreeGroup(color);
+    if (type === 'mountain'){
+      // A fresh random-but-then-fixed seed per instance — every mountain
+      // added looks different, but none of them jitter or reshuffle once
+      // placed (including across save/load, see loadShot).
+      const seed = Math.random() * 1000;
+      const mesh = new THREE.Mesh(
+        buildMountainGeometry(seed),
+        new THREE.MeshStandardMaterial({ color, roughness:0.9, flatShading:true })
+      );
+      mesh.userData.mat = mesh.material;
+      mesh.userData.mountainSeed = seed;
+      mesh.userData.mountainNoise = 1;
+      return mesh;
+    }
     const size = PROP_SIZES[type];
     const mesh = new THREE.Mesh(
       propGeometry(type, size),
@@ -2775,6 +2844,9 @@
       document.getElementById('objRotYLabel').value = readDisplayFieldValue(selected, 'rotY').toFixed(0);
       document.getElementById('objRotZLabel').value = readDisplayFieldValue(selected, 'rotZ').toFixed(0);
     }
+    if (isProp && selected.userData.type === 'mountain'){
+      document.getElementById('mountainNoiseLabel').value = Math.round((selected.userData.mountainNoise ?? 1) * 100);
+    }
   }
 
   function select(obj){
@@ -2793,6 +2865,7 @@
     document.getElementById('scaleRow').style.display = isProp ? 'flex' : 'none';
     document.getElementById('objRotRow').style.display = isRotatable ? 'flex' : 'none';
     document.getElementById('jointsRow').style.display = isChar ? 'flex' : 'none';
+    document.getElementById('mountainNoiseRow').style.display = (isProp && selected.userData.type === 'mountain') ? 'flex' : 'none';
     syncObjectHudValues();
     const propSwapRow = document.getElementById('propSwapRow');
     propSwapRow.style.display = isProp ? 'flex' : 'none';
@@ -2991,6 +3064,7 @@
   document.getElementById('addSphere').onclick = () => addProp('sphere');
   document.getElementById('addCube').onclick = () => addProp('cube');
   document.getElementById('addPyramid').onclick = () => addProp('pyramid');
+  document.getElementById('addMountain').onclick = () => addProp('mountain');
   document.getElementById('addCage').onclick = () => addProp('cage');
   document.getElementById('objColor').addEventListener('pointerdown', pushUndo);
   document.getElementById('objColor').oninput = (e) => {
@@ -4907,6 +4981,7 @@
         heightY: mesh.userData.heightOffset || 0,
         color: mesh.userData.mat.color.getHex(),
         trimStart: mesh.userData.trimStart || 0, trimEnd: mesh.userData.trimEnd ?? null,
+        mountainSeed: mesh.userData.mountainSeed, mountainNoise: mesh.userData.mountainNoise,
         keyframes: (mesh.userData.keyframes || []).map(k => ({...k}))
       }))
     };
@@ -5111,6 +5186,13 @@
       if (typeof o.color === 'number') mesh.userData.mat.color.setHex(o.color);
       mesh.userData.trimStart = o.trimStart || 0;
       mesh.userData.trimEnd = (typeof o.trimEnd === 'number') ? o.trimEnd : null;
+      // Mountains get a fresh random seed on creation (see buildPropMesh) —
+      // rebuild with the saved seed/amount instead so a reloaded shot shows
+      // the exact same bumps rather than a new random shape.
+      if (o.type === 'mountain' && typeof o.mountainSeed === 'number'){
+        mesh.userData.mountainSeed = o.mountainSeed;
+        rebuildMountainGeometry(mesh, typeof o.mountainNoise === 'number' ? o.mountainNoise : 1);
+      }
     });
 
     select(null);
