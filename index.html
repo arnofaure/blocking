@@ -470,6 +470,21 @@
     transform:translate(-50%,-50%) rotate(45deg); border-radius:2px; cursor:ew-resize; z-index:2; touch-action:none;
   }
   .kf-mark:hover { background: var(--danger); transform:translate(-50%,-50%) rotate(45deg) scale(1.3); }
+  /* Easing indicator: smooth (the default) stays the plain diamond; the
+     other three get a small colored dot baked in via box-shadow so the
+     chosen easing is visible at a glance without hovering for the tooltip. */
+  .kf-mark.ease-linear { box-shadow: inset 0 0 0 2px #60a5fa; }
+  .kf-mark.ease-easeIn { box-shadow: inset 0 0 0 2px #34d399; }
+  .kf-mark.ease-easeOut { box-shadow: inset 0 0 0 2px #fbbf24; }
+  .ease-menu {
+    position:fixed; z-index:50; background: var(--panel); border:0.5px solid var(--panel-border);
+    border-radius:6px; padding:4px; box-shadow:0 4px 16px rgba(0,0,0,0.4); font-size:11.5px;
+  }
+  .ease-menu-item {
+    padding:5px 10px; border-radius:4px; cursor:pointer; color:var(--text); white-space:nowrap;
+  }
+  .ease-menu-item:hover { background: rgba(255,255,255,0.1); }
+  .ease-menu-item.current { color: var(--select); font-weight:700; }
   .kf-expand-arrow {
     display:inline-flex; align-items:center; justify-content:center;
     width:14px; height:14px; flex-shrink:0; margin-right:4px; font-size:10px;
@@ -478,6 +493,29 @@
   }
   .kf-expand-arrow:hover { background: rgba(255,255,255,0.32); }
   .kf-expand-arrow.open { transform: rotate(90deg); }
+  .kf-trim-mask {
+    position:absolute; top:0; bottom:0; background: rgba(0,0,0,0.5); pointer-events:none; z-index:1;
+  }
+  .kf-trim-mask.left { left:0; }
+  .kf-trim-mask.right { right:0; }
+  /* A thin neutral boundary line reads as "this is a clip edge" rather than
+     a stray pink blob — it only lights up pink (matching the app's
+     selection color) on hover/drag, as feedback that it's grabbable. */
+  .kf-trim-line {
+    position:absolute; top:0; bottom:0; width:2px; background: rgba(255,255,255,0.3);
+    pointer-events:none; z-index:2;
+  }
+  .kf-trim-line.hover { background: var(--select); }
+  /* Only the top/bottom slivers of the lane are grabbable for trimming —
+     the vertical middle is left clear so it doesn't cover keyframe marks
+     that land exactly on the trim boundary (very common at t=0/duration). */
+  .kf-trim-handle {
+    position:absolute; height:7px; width:10px; cursor:ew-resize; z-index:3;
+    background: rgba(255,255,255,0.18); border-radius:2px; touch-action:none;
+  }
+  .kf-trim-handle.top { top:0; }
+  .kf-trim-handle.bottom { bottom:0; }
+  .kf-trim-handle:hover, .kf-trim-handle:active { background: var(--select); }
   .kf-row-label.sub {
     height:22px; padding-left:22px; font-size:10.5px; color:var(--text-dim);
     display:flex; align-items:center; justify-content:space-between; gap:4px;
@@ -817,6 +855,7 @@
       <button id="tlPlay">▶ Play</button>
       <button id="tlAddKey">+ Keyframe</button>
       <button class="danger" id="tlDelKey">Delete keyframe</button>
+      <button id="tlCutLayer" title="Split the selected layer into two independently-trimmed segments at the playhead">✂ Cut</button>
       <button id="tlSaveFrame" title="Export a JPEG of the current frame, cropped to the selected frame ratio">Save image</button>
       <button id="tlSaveDepth" title="Export a grayscale depth map PNG of the current frame">Save depth map</button>
       <button id="tlDepthToggle" title="Preview the depth map live in the main view">Depth view</button>
@@ -1624,7 +1663,7 @@
       const cx = (nameTagTmpBox.min.x + nameTagTmpBox.max.x) / 2;
       const cz = (nameTagTmpBox.min.z + nameTagTmpBox.max.z) / 2;
       entry.sprite.position.set(cx, nameTagTmpBox.max.y + 0.3, cz);
-      entry.sprite.visible = nameTagsOn;
+      entry.sprite.visible = nameTagsOn && obj.visible;
     });
   }
 
@@ -1697,7 +1736,7 @@
       const cx = (measurementTmpBox.min.x + measurementTmpBox.max.x) / 2;
       const cz = (measurementTmpBox.min.z + measurementTmpBox.max.z) / 2;
       entry.sprite.position.set(cx, measurementTmpBox.min.y - 0.15, cz);
-      entry.sprite.visible = true;
+      entry.sprite.visible = obj.visible;
     });
   }
 
@@ -3099,6 +3138,56 @@
     refreshKeyframePanel();
   }
 
+  // ---------- Razor cut: split the selected layer's timeline at the
+  // playhead into two independently-trimmed segments ----------
+  // Rather than remapping keyframe times, this duplicates the layer in
+  // place (same position/keyframes) and gives each half its own trim range
+  // — the original keeps [start, cutT), the new copy gets [cutT, end]. Both
+  // still carry every keyframe, so either half can be retimed or reshaped
+  // afterward without touching the other.
+  function cutSelectedAtPlayhead(){
+    if (!selected || selected === 'camera') return;
+    const targets = selected.isCharGroup ? selected.members.slice() : [selected];
+    const cuts = targets.filter(obj => {
+      const { start, end } = getTrimRange(obj);
+      return currentTime > start && currentTime < end;
+    });
+    if (!cuts.length) return;
+    pushUndo();
+    let lastCopy = null;
+    cuts.forEach(obj => {
+      const { end } = getTrimRange(obj);
+      const isChar = !!obj.userData.parts;
+      const mat = isChar ? obj.userData.parts.mat : obj.userData.mat;
+      let copy;
+      if (isChar){
+        copy = addCharacter(obj.position.x, obj.position.z);
+        copy.userData.parts.mat.color.setHex(mat.color.getHex());
+        JOINT_NAMES.forEach(n => setJoint(copy, n, obj.userData.joints[n]));
+      } else {
+        copy = addProp(obj.userData.type, obj.position.x, obj.position.z);
+        copy.userData.mat.color.setHex(mat.color.getHex());
+        copy.userData.heightOffset = obj.userData.heightOffset || 0;
+      }
+      copy.rotation.copy(obj.rotation);
+      copy.scale.copy(obj.scale);
+      if (!isChar) updatePropY(copy);
+      copy.userData.name = obj.userData.name;
+      copy.userData.keyframes = JSON.parse(JSON.stringify(obj.userData.keyframes || []));
+      copy.userData.heightMeasureOn = obj.userData.heightMeasureOn;
+      copy.userData.distanceMeasureOn = obj.userData.distanceMeasureOn;
+      copy.userData.trimStart = currentTime;
+      copy.userData.trimEnd = end;
+      obj.userData.trimEnd = currentTime;
+      lastCopy = copy;
+    });
+    if (lastCopy) select(lastCopy);
+    refreshList();
+    setCurrentTime(currentTime);
+    refreshTrajectory();
+    refreshKeyframePanel();
+  }
+
   // frame / aspect ratio buttons
   document.querySelectorAll('.frame-btn').forEach(btn=>{
     btn.onclick = () => {
@@ -3806,6 +3895,22 @@
 
   function easeInOut(e){ return e<0.5 ? 2*e*e : 1 - Math.pow(-2*e+2,2)/2; }
 
+  // Per-keyframe easing: describes how the segment LEAVING a keyframe (i.e.
+  // towards the next one) is shaped. 'smooth' (the default/legacy behavior,
+  // used when a keyframe has no .ease at all) keeps the existing Hermite
+  // spline; the other three bypass it for a plain eased lerp between the two
+  // endpoint values.
+  const EASE_TYPES = ['smooth', 'linear', 'easeIn', 'easeOut'];
+  const EASE_LABELS = { smooth:'Smooth', linear:'Linear', easeIn:'Ease In', easeOut:'Ease Out' };
+  function easedU(u, ease){
+    switch(ease){
+      case 'linear': return u;
+      case 'easeIn': return u*u*u;
+      case 'easeOut': return 1 - Math.pow(1-u, 3);
+      default: return null;
+    }
+  }
+
   // Finds the keyframe segment containing t, within an arbitrary (possibly
   // sparse/synthetic) keyframe list. a===b at/beyond the ends (held value).
   function findKfSegment(kfs, t){
@@ -3855,6 +3960,10 @@
   function interpKfField(kfs, seg, field){
     if (seg.a === seg.b) return seg.a[field];
     const p1 = seg.a[field], p2 = seg.b[field];
+    // A non-'smooth' ease on the departing keyframe bypasses the spline
+    // entirely for this segment, in favor of a plain eased lerp.
+    const eu = easedU(seg.u, seg.a.ease);
+    if (eu !== null) return p1 + (p2 - p1) * eu;
     const dt = seg.b.t - seg.a.t || 1e-6;
     // Hermite basis assumes tangents expressed per unit u (the segment's own
     // [0,1] span), so the per-time tangent above must be scaled by this
@@ -3871,7 +3980,7 @@
   // rotation-only) can't stall or skip this field's own curve. Returns null
   // if the field isn't keyframed anywhere on this track.
   function interpSparseField(kfs, t, field){
-    const synth = kfs.filter(k => typeof k[field] === 'number').map(k => ({ t: k.t, v: k[field] }));
+    const synth = kfs.filter(k => typeof k[field] === 'number').map(k => ({ t: k.t, v: k[field], ease: k.ease }));
     if (!synth.length) return null;
     const seg = findKfSegment(synth, t);
     return interpKfField(synth, seg, 'v');
@@ -3881,7 +3990,7 @@
   // they get their own small self-contained segment/interpolation instead of
   // reusing interpSparseField directly.
   function interpJointField(kfs, t, jointName){
-    const synth = kfs.filter(k => k.joints && typeof k.joints[jointName] === 'number').map(k => ({ t: k.t, v: k.joints[jointName] }));
+    const synth = kfs.filter(k => k.joints && typeof k.joints[jointName] === 'number').map(k => ({ t: k.t, v: k.joints[jointName], ease: k.ease }));
     if (!synth.length) return null;
     const seg = findKfSegment(synth, t);
     return interpKfField(synth, seg, 'v');
@@ -3918,9 +4027,27 @@
     }
   }
 
+  // A layer's trim range, defaulting to the whole timeline when it hasn't
+  // been trimmed. trimEnd is stored as null/undefined ("extends to the
+  // end") rather than baked to timelineDuration, so lengthening the overall
+  // timeline doesn't leave an untrimmed layer stuck ending early.
+  function getTrimRange(obj){
+    const start = obj.userData.trimStart || 0;
+    const end = (obj.userData.trimEnd == null) ? timelineDuration : obj.userData.trimEnd;
+    return { start, end };
+  }
+
   function applyTimeline(t){
-    characters.forEach(root => applyKeyframesToObject(root, t, true));
-    objects.forEach(mesh => applyKeyframesToObject(mesh, t, false));
+    characters.forEach(root => {
+      const { start, end } = getTrimRange(root);
+      root.visible = t >= start && t <= end;
+      applyKeyframesToObject(root, t, true);
+    });
+    objects.forEach(mesh => {
+      const { start, end } = getTrimRange(mesh);
+      mesh.visible = t >= start && t <= end;
+      applyKeyframesToObject(mesh, t, false);
+    });
   }
 
   function applyCameraKeyframes(t){
@@ -4077,10 +4204,12 @@
   // both the whole-object summary lane and the per-parameter sub-lanes.
   // Data mutation is left entirely to the callbacks so each caller can
   // decide what "moving" or "deleting" this particular mark means.
-  function createKfMark(lane, t, { onDrag, onCommitDrag, onClickJump, onShiftDelete, title }){
+  function createKfMark(lane, t, { onDrag, onCommitDrag, onClickJump, onShiftDelete, onContextMenu, title }){
     const mark = document.createElement('div');
     mark.className = 'kf-mark';
-    mark.title = title || 'Drag to move, click to select + jump to it, Shift+click to delete';
+    mark.title = title || (onContextMenu
+      ? 'Drag to move, click to select + jump to it, Shift+click to delete, right-click for easing'
+      : 'Drag to move, click to select + jump to it, Shift+click to delete');
     mark.style.left = (timelineDuration > 0 ? (t / timelineDuration * 100) : 0) + '%';
     let dragStartX = null, didDrag = false, lastNewT = t;
     mark.addEventListener('pointerdown', (e) => {
@@ -4112,8 +4241,148 @@
       if (e.shiftKey){ onShiftDelete(); return; }
       onClickJump();
     };
+    if (onContextMenu){
+      mark.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onContextMenu(mark);
+      });
+    }
     lane.appendChild(mark);
     return mark;
+  }
+
+  // Trim handles at the two ends of a layer's lane, clipping when the
+  // character/prop is visible without touching its keyframes. Dragging
+  // updates userData.trimStart/trimEnd live (so the canvas previews the cut
+  // instantly); the DOM only needs local width/position updates, not a full
+  // panel rebuild, until the drag settles.
+  function wireTrimHandles(lane, obj){
+    const leftMask = document.createElement('div');
+    leftMask.className = 'kf-trim-mask left';
+    const rightMask = document.createElement('div');
+    rightMask.className = 'kf-trim-mask right';
+    // A thin full-height line marks the boundary visually (pointer-events
+    // disabled, so it never blocks a keyframe mark underneath it); a small
+    // top + bottom grip on top of it is what's actually draggable. Two
+    // grips rather than one full-height hit target for the same reason —
+    // a full-height hit target would sit right on top of (and block
+    // clicking/right-clicking) any keyframe mark that lands exactly on the
+    // trim boundary, which is the common case at t=0 and t=duration.
+    const startLine = document.createElement('div');
+    startLine.className = 'kf-trim-line';
+    const endLine = document.createElement('div');
+    endLine.className = 'kf-trim-line';
+    const startTop = document.createElement('div');
+    startTop.className = 'kf-trim-handle top';
+    startTop.title = 'Drag to trim when this layer starts';
+    const startBottom = document.createElement('div');
+    startBottom.className = 'kf-trim-handle bottom';
+    startBottom.title = startTop.title;
+    const endTop = document.createElement('div');
+    endTop.className = 'kf-trim-handle top';
+    endTop.title = 'Drag to trim when this layer ends';
+    const endBottom = document.createElement('div');
+    endBottom.className = 'kf-trim-handle bottom';
+    endBottom.title = endTop.title;
+
+    const HANDLE_W = 10, LINE_W = 2;
+    // Handles are positioned in clamped pixels rather than centered on a
+    // raw percentage — at the untrimmed default (start=0%, end=100%) a
+    // percentage + negative margin would center the handle exactly on the
+    // lane's edge, and kfLanesWrap clips overflow-x, so half the handle
+    // would land outside the clickable/visible area.
+    const layout = () => {
+      const { start, end } = getTrimRange(obj);
+      const sPct = timelineDuration > 0 ? (start / timelineDuration * 100) : 0;
+      const ePct = timelineDuration > 0 ? (end / timelineDuration * 100) : 100;
+      leftMask.style.width = sPct + '%';
+      rightMask.style.width = (100 - ePct) + '%';
+      const laneW = lane.clientWidth;
+      const sPx = Math.max(0, Math.min(laneW - HANDLE_W, (sPct / 100) * laneW - HANDLE_W / 2));
+      const ePx = Math.max(0, Math.min(laneW - HANDLE_W, (ePct / 100) * laneW - HANDLE_W / 2));
+      startTop.style.left = startBottom.style.left = sPx + 'px';
+      endTop.style.left = endBottom.style.left = ePx + 'px';
+      startLine.style.left = (sPx + (HANDLE_W - LINE_W) / 2) + 'px';
+      endLine.style.left = (ePx + (HANDLE_W - LINE_W) / 2) + 'px';
+    };
+    layout();
+
+    const MIN_GAP = 0.05;
+    function wireHandle(handle, isStart, line){
+      let dragging = false, didDrag = false;
+      handle.addEventListener('pointerenter', () => line.classList.add('hover'));
+      handle.addEventListener('pointerleave', () => { if (!dragging) line.classList.remove('hover'); });
+      handle.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        dragging = true;
+        didDrag = false;
+        handle.setPointerCapture(e.pointerId);
+      });
+      handle.addEventListener('pointermove', (e) => {
+        if (!dragging) return;
+        if (!didDrag) pushUndo();
+        didDrag = true;
+        const rect = lane.getBoundingClientRect();
+        const frac = rect.width > 0 ? (e.clientX - rect.left) / rect.width : 0;
+        const tAtCursor = Math.max(0, Math.min(timelineDuration, frac * timelineDuration));
+        const { start, end } = getTrimRange(obj);
+        if (isStart) obj.userData.trimStart = Math.max(0, Math.min(end - MIN_GAP, tAtCursor));
+        else obj.userData.trimEnd = Math.max(start + MIN_GAP, Math.min(timelineDuration, tAtCursor));
+        layout();
+        applyTimeline(currentTime);
+      });
+      handle.addEventListener('pointerup', (e) => {
+        e.stopPropagation();
+        handle.releasePointerCapture(e.pointerId);
+        dragging = false;
+        line.classList.remove('hover');
+      });
+      handle.onclick = (e) => e.stopPropagation();
+    }
+    [startTop, startBottom].forEach(h => wireHandle(h, true, startLine));
+    [endTop, endBottom].forEach(h => wireHandle(h, false, endLine));
+
+    lane.append(leftMask, rightMask, startLine, endLine, startTop, startBottom, endTop, endBottom);
+  }
+
+  function markSetEaseClass(mark, ease){
+    EASE_TYPES.forEach(e => mark.classList.remove('ease-' + e));
+    mark.classList.add('ease-' + (ease || 'smooth'));
+  }
+
+  // Small right-click popup letting a keyframe's outgoing-segment easing be
+  // chosen — only offered on whole-object marks (not per-parameter sub
+  // marks), since .ease lives on the whole keyframe entry.
+  let openEaseMenu = null;
+  function closeEaseMenu(){
+    if (openEaseMenu){ openEaseMenu.remove(); openEaseMenu = null; }
+  }
+  function showEaseMenu(obj, k, markEl){
+    closeEaseMenu();
+    const menu = document.createElement('div');
+    menu.className = 'ease-menu';
+    EASE_TYPES.forEach(ease => {
+      const item = document.createElement('div');
+      item.className = 'ease-menu-item' + ((k.ease || 'smooth') === ease ? ' current' : '');
+      item.textContent = EASE_LABELS[ease];
+      item.onclick = (e) => {
+        e.stopPropagation();
+        pushUndo();
+        if (ease === 'smooth') delete k.ease; else k.ease = ease;
+        closeEaseMenu();
+        setCurrentTime(currentTime);
+        if (selected === obj) refreshTrajectory();
+        refreshKeyframePanel();
+      };
+      menu.appendChild(item);
+    });
+    document.body.appendChild(menu);
+    const rect = markEl.getBoundingClientRect();
+    menu.style.left = rect.left + 'px';
+    menu.style.top = (rect.bottom + 4) + 'px';
+    openEaseMenu = menu;
+    setTimeout(() => document.addEventListener('click', closeEaseMenu, { once: true }), 0);
   }
 
   function refreshKeyframePanel(){
@@ -4164,7 +4433,7 @@
         setCurrentTime(frac * timelineDuration);
       };
       track.kfs.forEach(k => {
-        createKfMark(lane, k.t, {
+        const mark = createKfMark(lane, k.t, {
           onDrag: (newT) => {
             k.t = newT;
             setCurrentTime(currentTime);
@@ -4177,10 +4446,15 @@
             if (selected === track.obj) refreshTrajectory();
           },
           onClickJump: () => { select(track.obj); setCurrentTime(k.t); },
-          onShiftDelete: () => removeNearestKeyframe(track.obj, k.t)
+          onShiftDelete: () => removeNearestKeyframe(track.obj, k.t),
+          onContextMenu: (markEl) => showEaseMenu(track.obj, k, markEl)
         });
+        markSetEaseClass(mark, k.ease);
       });
       lanesWrap.appendChild(lane);
+      // Wired only after the lane is in the document — the handle layout
+      // reads lane.clientWidth, which is 0 on a detached element.
+      if (track.obj !== 'camera') wireTrimHandles(lane, track.obj);
 
       if (isExpanded && track.obj !== null){
         getFieldGroups(track.obj).forEach(group => {
@@ -4252,7 +4526,7 @@
           labels.appendChild(subLabel);
 
           const subLane = document.createElement('div');
-          subLane.className = 'kf-lane sub' + (selected === track.obj ? ' active' : '');
+          subLane.className = 'kf-lane sub';
           subLane.style.background = hexToRgba(track.color, 0.1);
           subLane.onclick = (e) => {
             const rect = subLane.getBoundingClientRect();
@@ -4331,6 +4605,7 @@
     if (!selected) return;
     removeNearestKeyframe(selected, currentTime);
   };
+  document.getElementById('tlCutLayer').onclick = cutSelectedAtPlayhead;
 
   let lastPlayTs = 0;
   function playStep(now){
@@ -4556,6 +4831,7 @@
         pose: root.userData.pose, name: root.userData.name, size: root.scale.x,
         color: root.userData.parts.mat.color.getHex(),
         joints: {...root.userData.joints},
+        trimStart: root.userData.trimStart || 0, trimEnd: root.userData.trimEnd ?? null,
         keyframes: (root.userData.keyframes || []).map(k => ({...k, joints: k.joints ? {...k.joints} : undefined}))
       })),
       objects: objects.map(mesh => ({
@@ -4564,6 +4840,7 @@
         scaleW: mesh.scale.x, scaleH: mesh.scale.y, scaleD: mesh.scale.z,
         heightY: mesh.userData.heightOffset || 0,
         color: mesh.userData.mat.color.getHex(),
+        trimStart: mesh.userData.trimStart || 0, trimEnd: mesh.userData.trimEnd ?? null,
         keyframes: (mesh.userData.keyframes || []).map(k => ({...k}))
       }))
     };
@@ -4745,6 +5022,8 @@
       if (typeof c.y === 'number') root.position.y = c.y;
       if (typeof c.size === 'number' && c.size > 0) root.scale.setScalar(c.size);
       JOINT_NAMES.forEach(n => setJoint(root, n, (c.joints && c.joints[n]) || 0));
+      root.userData.trimStart = c.trimStart || 0;
+      root.userData.trimEnd = (typeof c.trimEnd === 'number') ? c.trimEnd : null;
     });
 
     shot.objects.forEach(o => {
@@ -4762,6 +5041,8 @@
       if (typeof o.rotX === 'number') mesh.rotation.x = o.rotX;
       if (typeof o.rotZ === 'number') mesh.rotation.z = o.rotZ;
       if (typeof o.color === 'number') mesh.userData.mat.color.setHex(o.color);
+      mesh.userData.trimStart = o.trimStart || 0;
+      mesh.userData.trimEnd = (typeof o.trimEnd === 'number') ? o.trimEnd : null;
     });
 
     select(null);
