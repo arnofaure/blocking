@@ -80,13 +80,17 @@
   }
   .tb-logo { height:30px; width:auto; display:block; }
   .tb-logo-btn .tb-chevron { color:var(--text-dim); }
+  .tb-beta {
+    font-size:9px; font-weight:700; letter-spacing:.03em; color:rgba(255,255,255,0.55);
+    padding:1px 4px; border:0.5px solid rgba(255,255,255,0.25); border-radius:4px; flex-shrink:0;
+  }
   .tb-menu-heading {
     font-size:13px; font-weight:600; color:var(--text);
     letter-spacing:.04em; text-transform:uppercase; padding:4px 8px;
   }
   .tb-dropdown {
     display:none; flex-direction:column; gap:2px; position:absolute;
-    top:calc(100% + 8px); left:0; min-width:190px;
+    top:calc(100% + 8px); left:0; min-width:220px;
     background:#1a1a1a; border:0.5px solid var(--border-hover);
     border-radius: var(--radius); padding:6px; box-shadow:0 12px 28px rgba(0,0,0,0.45); z-index:200;
   }
@@ -547,6 +551,7 @@
       <span class="tb-logo-square">
         <img class="tb-logo" src="icons/logo.svg" alt="">
       </span>
+      <span class="tb-beta">BETA</span>
       <svg class="tb-chevron" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
     </button>
     <div class="tb-dropdown" id="mainMenu">
@@ -585,6 +590,7 @@
           </g>
         </svg>
         Storyboard App
+        <span class="tb-beta">BETA</span>
       </a>
       <a class="tb-btn" href="https://moodboard.arnofaure.com/" target="_blank" rel="noopener noreferrer" title="Open the Moodboard app">
         <svg width="13" height="13" viewBox="0 0 362 661" xmlns="http://www.w3.org/2000/svg">
@@ -597,6 +603,7 @@
           </g>
         </svg>
         Moodboard App
+        <span class="tb-beta">BETA</span>
       </a>
       <a class="tb-btn" href="https://time.arnofaure.com/" target="_blank" rel="noopener noreferrer" title="Open the Time Tracker app">
         <svg width="13" height="13" viewBox="0 0 362 661" xmlns="http://www.w3.org/2000/svg">
@@ -609,6 +616,7 @@
           </g>
         </svg>
         Time Tracker
+        <span class="tb-beta">BETA</span>
       </a>
       <div class="tb-sep-h"></div>
       <button class="tb-btn" id="menuHelp" title="Quick guide to using the Blocking Tool">
