@@ -200,7 +200,9 @@
   #stage { position:absolute; top:60px; right:0; bottom:22px; left:250px; display:flex; flex-direction:column; }
   #views { flex:1; min-height:0; display:flex; flex-direction:row; }
   #canvas-wrap { flex:1; min-width:0; position:relative; overflow:hidden; }
-  #topview-wrap { flex: 0 0 auto; width:300px; min-width:0; position:relative; background:#101113; }
+  #topview-wrap { flex: 0 0 auto; width:300px; min-width:0; display:flex; flex-direction:column; background:#101113; }
+  .ortho-pane { flex:1; min-height:0; position:relative; }
+  .ortho-pane + .ortho-pane { border-top:0.5px solid var(--panel-border); }
   #viewsDivider {
     width:6px; flex-shrink:0; cursor:col-resize;
     background: var(--panel-border);
@@ -212,7 +214,7 @@
      near reads as white/close and far as black, matching the export below. */
   #c.depth-invert { filter: invert(1); }
   canvas.dragging { cursor: grabbing; }
-  #topLabel {
+  .ortho-label {
     position:absolute; top:8px; left:8px; z-index:5; pointer-events:none;
     font-size:10px; letter-spacing:.08em; text-transform:uppercase; font-weight:600;
     color: var(--text-dim); background:rgba(0,0,0,0.4); padding:3px 7px; border-radius:4px;
@@ -384,6 +386,11 @@
   .val-input:focus { cursor:text; }
   input[type="checkbox"] { accent-color: var(--text); }
   .row .label-sm { font-size:11px; color:var(--text-dim); width:44px; flex-shrink:0; }
+  .add-group-label {
+    font-size:10px; font-weight:600; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--text-dim); margin:10px 0 4px 2px;
+  }
+  .add-group-label:first-of-type { margin-top:10px; }
   .swatches { display:flex; gap:6px; }
   .swatch {
     flex:1; height:28px; border-radius: var(--radius); cursor:pointer;
@@ -691,6 +698,9 @@
         <label style="display:flex; align-items:center; gap:6px">
           <input type="checkbox" id="distanceMeasureToggle"> Distance from camera (per object)
         </label>
+        <label style="display:flex; align-items:center; gap:6px">
+          <input type="checkbox" id="trajectoryToggle" checked> Trajectory path (selected object)
+        </label>
       </div>
       <button id="displayHudToggle" title="Show/hide display HUD">DISPLAY</button>
       <div id="bgHud">
@@ -882,8 +892,14 @@
     </div>
     <div id="viewsDivider"></div>
     <div id="topview-wrap">
-      <canvas id="topCanvas"></canvas>
-      <div id="topLabel">Top view</div>
+      <div id="topview-pane" class="ortho-pane">
+        <canvas id="topCanvas"></canvas>
+        <div class="ortho-label">Top view</div>
+      </div>
+      <div id="leftview-pane" class="ortho-pane">
+        <canvas id="leftCanvas"></canvas>
+        <div class="ortho-label">Left view</div>
+      </div>
     </div>
   </div>
   <div id="kfDivider"></div>
@@ -899,6 +915,7 @@
       <button id="tlSaveDepth" title="Export a grayscale depth map PNG of the current frame">Save depth map</button>
       <button id="tlDepthToggle" title="Preview the depth map live in the main view">Depth view</button>
       <button id="tlSkeletonToggle" title="Toggle skeleton view for characters">Skeleton</button>
+      <button id="tlAnimatedOnly" title="Show only layers that have at least one keyframe">Animated only</button>
       <span class="hint" style="margin:0">Duration</span>
       <input type="number" id="tlDuration" value="6" min="1" max="60" step="1">
       <span class="hint" style="margin:0 0 0 auto" id="kfToolbarTime">0.0s</span>
@@ -955,31 +972,34 @@
         <option value="in">Inches</option>
       </select>
     </div>
-    <div class="row" style="margin-top:10px; margin-bottom:6px">
+    <div class="add-group-label" style="margin-top:10px">Vehicles</div>
+    <div class="row" style="margin-bottom:6px">
       <button id="addCar">+ Car</button>
       <button id="addBus">+ Bus</button>
     </div>
+    <div class="add-group-label">Structures</div>
     <div class="row" style="margin-bottom:6px">
       <button id="addWall">+ Wall</button>
       <button id="addHouse">+ House</button>
     </div>
     <div class="row" style="margin-bottom:6px">
       <button id="addDoor">+ Door</button>
+    </div>
+    <div class="add-group-label">Nature</div>
+    <div class="row" style="margin-bottom:6px">
       <button id="addTree">+ Tree</button>
+      <button id="addMountain" title="A low-poly peak with a fixed (non-animated) bumpy noise, different every time one is added">+ Mountain</button>
     </div>
-    <div class="row">
+    <div class="add-group-label">Furniture &amp; rig</div>
+    <div class="row" style="margin-bottom:6px">
       <button id="addTable">+ Table</button>
+      <button id="addCage" title="Hollow box made of edges only — resize it to use as a car/cage frame with characters inside">+ Cage</button>
     </div>
-    <div class="row" style="margin-top:6px">
+    <div class="add-group-label">Shapes</div>
+    <div class="row">
       <button id="addSphere">+ Sphere</button>
       <button id="addCube">+ Cube</button>
       <button id="addPyramid">+ Pyramid</button>
-    </div>
-    <div class="row" style="margin-top:6px">
-      <button id="addMountain" title="A low-poly peak with a fixed (non-animated) bumpy noise, different every time one is added">+ Mountain</button>
-    </div>
-    <div class="row" style="margin-top:6px">
-      <button id="addCage" title="Hollow box made of edges only — resize it to use as a car/cage frame with characters inside">+ Cage</button>
     </div>
   </section>
 
@@ -1095,6 +1115,13 @@
         <option value="60">60</option>
       </select>
     </div>
+    <div class="row align" style="margin-bottom:6px">
+      <span class="label-sm">Format</span>
+      <select id="recFormat" style="flex:1">
+        <option value="webm" selected>WebM (instant)</option>
+        <option value="mp4">MP4 (transcoded after recording)</option>
+      </select>
+    </div>
     <button class="primary" id="recBtn">● Record</button>
     <div id="status"></div>
     <div id="dlWrap"></div>
@@ -1188,6 +1215,14 @@
 </footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<!-- Small UMD wrapper libraries for the MP4 export path (transcodes the
+     recorded WebM with ffmpeg.wasm, single-threaded core — no COOP/COEP
+     headers needed, since this is a plain static site with no control over
+     response headers). These wrappers are lightweight; the actual ~25-30MB
+     wasm core is only fetched the first time "Export as MP4" is clicked
+     (see loadFFmpeg() below), not on every page load. -->
+<script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/umd/index.js"></script>
 <script>
 (function(){
   // ---------- Collapsible left-panel sections ----------
@@ -1283,7 +1318,8 @@
 
   // ---------- Top-down (2D) view ----------
   const topCanvas = document.getElementById('topCanvas');
-  const topWrap = document.getElementById('topview-wrap');
+  const topWrap = document.getElementById('topview-wrap'); // outer column — its width is what the divider resizes
+  const topPane = document.getElementById('topview-pane'); // inner pane — its box is what the top canvas actually fills
   const topRenderer = new THREE.WebGLRenderer({ canvas: topCanvas, antialias:true });
   let topZoom = 10; // half-height of the ortho frustum, in meters
   const topTarget = new THREE.Vector3(0, 0, 0); // world point the top-down view is centered on
@@ -1297,7 +1333,7 @@
   updateTopCameraPosition();
 
   function updateTopViewport(){
-    const w = topWrap.clientWidth, h = topWrap.clientHeight;
+    const w = topPane.clientWidth, h = topPane.clientHeight;
     topRenderer.setSize(w, h, false);
     topRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     const aspect = w / (h || 1);
@@ -1312,6 +1348,42 @@
     e.preventDefault();
     topZoom = Math.max(1, Math.min(40, topZoom + e.deltaY * 0.01));
     updateTopViewport();
+  }, { passive:false });
+
+  // ---------- Left (side, 2D) view ----------
+  // Axis-aligned orthographic camera looking along +X from the left, so the
+  // screen's horizontal axis is world Z (depth) and vertical is world Y
+  // (height) — the one plane the top view can't show or let you edit.
+  const leftCanvas = document.getElementById('leftCanvas');
+  const leftPane = document.getElementById('leftview-pane');
+  const leftRenderer = new THREE.WebGLRenderer({ canvas: leftCanvas, antialias:true });
+  let leftZoom = 10; // half-height of the ortho frustum, in meters
+  const leftTarget = new THREE.Vector3(0, 1, 0); // world point the left view is centered on (y,z matter; x is just camera offset)
+  const leftCamera = new THREE.OrthographicCamera(-10, 10, 10, -10, 0.1, 2000);
+  leftCamera.up.set(0, 1, 0);
+
+  function updateLeftCameraPosition(){
+    leftCamera.position.set(leftTarget.x - 50, leftTarget.y, leftTarget.z);
+    leftCamera.lookAt(leftTarget.x, leftTarget.y, leftTarget.z);
+  }
+  updateLeftCameraPosition();
+
+  function updateLeftViewport(){
+    const w = leftPane.clientWidth, h = leftPane.clientHeight;
+    leftRenderer.setSize(w, h, false);
+    leftRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    const aspect = w / (h || 1);
+    leftCamera.left = -leftZoom * aspect;
+    leftCamera.right = leftZoom * aspect;
+    leftCamera.top = leftZoom;
+    leftCamera.bottom = -leftZoom;
+    leftCamera.updateProjectionMatrix();
+  }
+
+  leftCanvas.addEventListener('wheel', (e)=>{
+    e.preventDefault();
+    leftZoom = Math.max(1, Math.min(40, leftZoom + e.deltaY * 0.01));
+    updateLeftViewport();
   }, { passive:false });
 
   // ---------- Frame (viewfinder) ----------
@@ -1372,7 +1444,7 @@
     frameLabel.style.display = frameAspect ? 'block' : 'none';
     frameLabel.textContent = frameLabelText;
   }
-  function resize(){ updateViewport(); updateTopViewport(); }
+  function resize(){ updateViewport(); updateTopViewport(); updateLeftViewport(); }
   window.addEventListener('resize', resize);
 
   // ---------- Resizable divider between camera view and top view ----------
@@ -1787,6 +1859,8 @@
     measurementSprites.forEach(entry => { entry.sprite.visible = show; });
   }
 
+  let trajectoryEnabled = true;
+
   // ---------- Facing-direction arrows: small cone pointing each object's +Z ----------
   let directionArrowsOn = false;
   const directionArrowMeshes = [];
@@ -1849,10 +1923,11 @@
   camMarkerGeo.rotateX(-Math.PI/2); // apex now points along local -Z
   const camMarker = new THREE.Mesh(camMarkerGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }));
   camMarker.renderOrder = 5;
-  // marker is only meant to be seen in the top-down view — keep it off the main
-  // camera's layer so it can't fill the frame when that camera dips below the grid
+  // marker is only meant to be seen in the top-down/left views — keep it off the
+  // main camera's layer so it can't fill the frame when that camera dips below the grid
   camMarker.layers.set(1);
   topCamera.layers.enable(1);
+  leftCamera.layers.enable(1);
   scene.add(camMarker);
 
   // ---------- Orbit camera (custom, minimal) ----------
@@ -3399,6 +3474,14 @@
   skeletonToggle.onchange = (e) => applySkeletonToggle(e.target.checked);
   tlSkeletonToggle.onclick = () => applySkeletonToggle(!skeletonViewOn);
 
+  let timelineAnimatedOnly = false;
+  const tlAnimatedOnlyBtn = document.getElementById('tlAnimatedOnly');
+  tlAnimatedOnlyBtn.onclick = () => {
+    timelineAnimatedOnly = !timelineAnimatedOnly;
+    tlAnimatedOnlyBtn.classList.toggle('active', timelineAnimatedOnly);
+    refreshKeyframePanel();
+  };
+
   const depthToggle = document.getElementById('depthToggle');
   const tlDepthToggle = document.getElementById('tlDepthToggle');
   function applyDepthToggle(on){
@@ -3421,6 +3504,10 @@
   document.getElementById('directionArrowsToggle').onchange = (e) => {
     directionArrowsOn = e.target.checked;
     directionArrowMeshes.forEach(m => { m.visible = directionArrowsOn; });
+  };
+  document.getElementById('trajectoryToggle').onchange = (e) => {
+    trajectoryEnabled = e.target.checked;
+    refreshTrajectory();
   };
   document.getElementById('heightMeasureToggle').onchange = (e) => {
     heightMeasureOn = e.target.checked;
@@ -3459,17 +3546,38 @@
     if (obj.isCharGroup) obj.members.forEach(m => { autoKeyField(m, 'x'); autoKeyField(m, 'z'); });
     else { autoKeyField(obj, 'x'); autoKeyField(obj, 'z'); }
   }
+  // Left-view drag moves height/depth instead of the floor plane's x/z.
+  function autoKeyDraggedPositionYZ(obj){
+    if (obj.isCharGroup) obj.members.forEach(m => { autoKeyField(m, 'y'); autoKeyField(m, 'z'); });
+    else { autoKeyField(obj, 'y'); autoKeyField(obj, 'z'); }
+  }
 
-  // A group has no single position — dragging translates every member by the
-  // same delta instead of snapping to the cursor's floor point.
+  // Always move by the delta between this frame's and the last frame's floor
+  // point, never snap straight to the cursor's floor point: for a tall prop
+  // viewed at an angle, the floor point under the cursor (e.g. near the top
+  // of a wall) can sit far from the object's own footprint, so snapping to
+  // it teleports the object the instant a drag starts.
   function applyDragMove(obj, pt, lastPt){
+    if (!lastPt) return; // no valid reference point yet (see floorPointAt) — skip this frame rather than snapping/NaN-ing
+    const dx = pt.x - lastPt.x, dz = pt.z - lastPt.z;
     if (obj.isCharGroup){
-      if (!lastPt) return; // no valid reference point yet (see floorPointAt) — skip this frame rather than NaN-ing every member
-      const dx = pt.x - lastPt.x, dz = pt.z - lastPt.z;
       obj.members.forEach(m => { m.position.x += dx; m.position.z += dz; });
     } else {
-      obj.position.x = pt.x;
-      obj.position.z = pt.z;
+      obj.position.x += dx;
+      obj.position.z += dz;
+    }
+  }
+
+  // Left-view equivalent: same delta rule, applied to height (y) and depth
+  // (z) instead of the floor plane, since the left view can't touch x.
+  function applyDragMoveYZ(obj, pt, lastPt){
+    if (!lastPt) return;
+    const dy = pt.y - lastPt.y, dz = pt.z - lastPt.z;
+    if (obj.isCharGroup){
+      obj.members.forEach(m => { m.position.y += dy; m.position.z += dz; });
+    } else {
+      obj.position.y += dy;
+      obj.position.z += dz;
     }
   }
 
@@ -3516,6 +3624,17 @@
 
   function pickCharacter(e){ return pickAt(camera, canvas, e); }
   function floorPoint(e){ return floorPointAt(camera, canvas, e); }
+
+  // Left-view equivalent of floorPointAt: this camera is a strictly
+  // axis-aligned orthographic view down +X, so every ray is parallel to X —
+  // its y/z never change along the ray's length. That means the ray's own
+  // origin (already sitting on the near plane) already carries the exact
+  // world y/z under the cursor; no plane intersection/distance guard needed.
+  function sidePointAt(cam, canvasEl, e){
+    setMouseAt(e, canvasEl);
+    raycaster.setFromCamera(mouse, cam);
+    return { y: raycaster.ray.origin.y, z: raycaster.ray.origin.z };
+  }
 
   function pickCamMarker(cam, canvasEl, e){
     setMouseAt(e, canvasEl);
@@ -3608,6 +3727,77 @@
   }
   topCanvas.addEventListener('pointerup', endTopDrag);
   topCanvas.addEventListener('pointerleave', endTopDrag);
+
+  // ---------- Left view pointer interaction ----------
+  // Mirrors the top-down view's interaction, but on the y/z plane instead of
+  // x/z — no path-drawing mode here since a click-drawn path is a floor-plane
+  // (x/z) waypoint list, which this view has no meaningful way to author.
+  let leftMode = null; // 'drag' | 'pan' | 'camDrag' | 'dragKf'
+  let leftDragObj = null;
+  let leftDragLastPt = null;
+  let leftPanAnchor = null;
+  let leftDragKf = null;
+  leftCanvas.addEventListener('pointerdown', (e)=>{
+    const kfMarker = pickTrajectoryMarker(leftCamera, leftCanvas, e);
+    const camHit = !kfMarker && pickCamMarker(leftCamera, leftCanvas, e);
+    const hit = (kfMarker || camHit) ? null : pickAt(leftCamera, leftCanvas, e);
+    if (kfMarker){
+      pushUndo();
+      leftMode = 'dragKf';
+      leftDragKf = kfMarker.userData.kf;
+    } else if (camHit){
+      pushUndo();
+      select('camera');
+      leftMode = 'camDrag';
+    } else if (hit){
+      select(hit);
+      if (hit.userData.locked){
+        leftMode = null;
+      } else {
+        pushUndo();
+        leftMode = 'drag';
+        leftDragObj = hit;
+        leftDragLastPt = sidePointAt(leftCamera, leftCanvas, e);
+      }
+    } else {
+      select(null);
+      leftMode = 'pan';
+      leftPanAnchor = sidePointAt(leftCamera, leftCanvas, e);
+    }
+    leftCanvas.setPointerCapture(e.pointerId);
+    leftCanvas.classList.add('dragging');
+  });
+  leftCanvas.addEventListener('pointermove', (e)=>{
+    if (leftMode === 'dragKf' && leftDragKf){
+      const pt = sidePointAt(leftCamera, leftCanvas, e);
+      leftDragKf.y = pt.y;
+      leftDragKf.z = pt.z;
+      refreshTrajectory();
+      setCurrentTime(currentTime);
+    } else if (leftMode === 'camDrag'){
+      const pt = sidePointAt(leftCamera, leftCanvas, e);
+      target.y += pt.y - camera.position.y;
+      target.z += pt.z - camera.position.z;
+      updateCameraFromSpherical();
+    } else if (leftMode === 'drag' && leftDragObj){
+      const pt = sidePointAt(leftCamera, leftCanvas, e);
+      applyDragMoveYZ(leftDragObj, pt, leftDragLastPt);
+      leftDragLastPt = pt;
+    } else if (leftMode === 'pan' && leftPanAnchor){
+      const pt = sidePointAt(leftCamera, leftCanvas, e);
+      leftTarget.y -= (pt.y - leftPanAnchor.y);
+      leftTarget.z -= (pt.z - leftPanAnchor.z);
+      updateLeftCameraPosition();
+    }
+  });
+  function endLeftDrag(){
+    leftCanvas.classList.remove('dragging');
+    if (leftMode === 'drag' && leftDragObj){ autoKeyDraggedPositionYZ(leftDragObj); refreshKeyframePanel(); }
+    else if (leftMode === 'camDrag'){ autoKeyField('camera', 'ty'); autoKeyField('camera', 'tz'); refreshKeyframePanel(); }
+    leftMode = null; leftDragObj = null; leftDragLastPt = null; leftPanAnchor = null; leftDragKf = null;
+  }
+  leftCanvas.addEventListener('pointerup', endLeftDrag);
+  leftCanvas.addEventListener('pointerleave', endLeftDrag);
 
   let dragKf = null;
   canvas.addEventListener('pointerdown', (e)=>{
@@ -4232,6 +4422,7 @@
   function refreshTrajectory(){
     if (trajectoryLine){ scene.remove(trajectoryLine); trajectoryLine.geometry.dispose(); trajectoryLine.material.dispose(); trajectoryLine = null; }
     if (trajectoryMarkers){ scene.remove(trajectoryMarkers); trajectoryMarkers = null; }
+    if (!trajectoryEnabled) return;
     if (!selected || selected === null || selected.isCharGroup) return;
     const kfs = getKeyframes(selected);
     if (kfs.length < 2) return;
@@ -4515,9 +4706,10 @@
     lanesWrap.querySelectorAll('.kf-lane').forEach(el => el.remove());
     document.getElementById('kfRulerEnd').textContent = timelineDuration.toFixed(1) + 's';
 
-    const tracks = [{ obj: 'camera', name: 'Camera', kfs: cameraKeyframes, color: '#e8e6e1' }]
+    const allTracks = [{ obj: 'camera', name: 'Camera', kfs: cameraKeyframes, color: '#e8e6e1' }]
       .concat(characters.map(root => ({ obj: root, name: root.userData.name, kfs: root.userData.keyframes || [], color: '#' + root.userData.parts.mat.color.getHexString() })))
       .concat(objects.map(mesh => ({ obj: mesh, name: mesh.userData.name, kfs: mesh.userData.keyframes || [], color: '#' + mesh.userData.mat.color.getHexString() })));
+    const tracks = timelineAnimatedOnly ? allTracks.filter(t => t.kfs.length > 0) : allTracks;
 
     tracks.forEach(track => {
       const isExpanded = kfExpandedSet.has(track.obj);
@@ -5554,16 +5746,8 @@
     catch(err){ statusEl.textContent = "Recording error."; return; }
 
     mediaRecorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
-    mediaRecorder.onstop = () => {
+    mediaRecorder.onstop = async () => {
       const blob = new Blob(chunks, { type: 'video/webm' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.className = 'dl-link';
-      a.href = url;
-      a.download = exportNameStem() + '.webm';
-      a.textContent = '↓ Download video';
-      dlWrap.appendChild(a);
-      statusEl.textContent = '';
       recBtn.innerHTML = '● Record';
       recBtn.classList.remove('active');
       recording = false;
@@ -5571,6 +5755,25 @@
       recordCropCanvas = null;
       recordCropCtx = null;
       recordCropRect = null;
+
+      const wantsMp4 = document.getElementById('recFormat').value === 'mp4';
+      if (!wantsMp4){
+        offerDownload(blob, exportNameStem() + '.webm', '↓ Download video');
+        statusEl.textContent = '';
+        return;
+      }
+      statusEl.textContent = 'Recorded — loading MP4 converter…';
+      try {
+        const mp4Blob = await transcodeToMp4(blob, fps, (pct) => {
+          statusEl.textContent = 'Converting to MP4… ' + pct + '%';
+        });
+        offerDownload(mp4Blob, exportNameStem() + '.mp4', '↓ Download video (MP4)');
+        statusEl.textContent = '';
+      } catch (err){
+        console.error(err);
+        statusEl.textContent = 'MP4 conversion failed — falling back to WebM.';
+        offerDownload(blob, exportNameStem() + '.webm', '↓ Download video (WebM fallback)');
+      }
     };
 
     mediaRecorder.start();
@@ -5586,6 +5789,88 @@
   function stopRecording(){
     if (playing) stopPlayback();
     if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+  }
+
+  function offerDownload(blob, filename, label){
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.className = 'dl-link';
+    a.href = url;
+    a.download = filename;
+    a.textContent = label;
+    dlWrap.appendChild(a);
+  }
+
+  // ---------- MP4 export (ffmpeg.wasm, loaded on first use only) ----------
+  let ffmpegInstance = null, ffmpegLoadPromise = null;
+  function loadFFmpeg(){
+    if (!ffmpegLoadPromise){
+      ffmpegLoadPromise = (async () => {
+        const { FFmpeg } = FFmpegWASM;
+        const { toBlobURL } = FFmpegUtil;
+        const ffmpeg = new FFmpeg();
+        // Core+wasm (and the library's own internal worker chunk, via
+        // classWorkerURL) all served as same-origin blob URLs — a plain
+        // <script src> from the CDN loads fine, but ffmpeg.wasm spawns its
+        // own Worker from a URL relative to that CDN origin, and browsers
+        // refuse to construct a classic Worker from a cross-origin script
+        // URL. Blob-ifying it first (toBlobURL fetches, then re-wraps as a
+        // same-origin blob: URL) sidesteps that.
+        const ffmpegBase = 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd';
+        // The worker dynamically `import()`s the core — that needs actual ESM
+        // (real `export` statements), not the UMD build, which is only valid
+        // as a classic script/importScripts target and silently fails an
+        // `import()` with the generic "failed to import ffmpeg-core.js".
+        const coreBase = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/esm';
+        await ffmpeg.load({
+          classWorkerURL: await toBlobURL(ffmpegBase + '/814.ffmpeg.js', 'text/javascript'),
+          coreURL: await toBlobURL(coreBase + '/ffmpeg-core.js', 'text/javascript'),
+          wasmURL: await toBlobURL(coreBase + '/ffmpeg-core.wasm', 'application/wasm'),
+        });
+        ffmpegInstance = ffmpeg;
+        return ffmpeg;
+      })();
+    }
+    return ffmpegLoadPromise;
+  }
+
+  async function transcodeToMp4(webmBlob, fps, onProgress){
+    const ffmpeg = await loadFFmpeg();
+    const { fetchFile } = FFmpegUtil;
+    const progressHandler = ({ progress }) => onProgress(Math.round(Math.min(1, Math.max(0, progress)) * 100));
+    ffmpeg.on('progress', progressHandler);
+    try {
+      await ffmpeg.writeFile('input.webm', await fetchFile(webmBlob));
+      // -r fps (as an INPUT option, before -i): captureStream(0) + manual
+      // requestFrame() pushes real frames on our own clock but leaves the
+      // container's own frame-rate metadata absent/unreliable, so ffmpeg's
+      // auto-detection reads a bogus near-1000fps timebase and "fills in"
+      // the gap with a duplicate frame per missing tick — ~10x more output
+      // frames than the recording actually has, which is what made this
+      // take forever. Telling ffmpeg the real, known rate up front avoids
+      // that duplication entirely.
+      // yuv420p: the one pixel format every player (QuickTime, Windows,
+      // mobile) can decode — libx264 defaults to yuv444p/yuv422p depending on
+      // input, which plays in a browser but not in most native video apps.
+      // scale=trunc(iw/2)*2:trunc(ih/2)*2: libx264 refuses an odd width or
+      // height outright ("height not divisible by 2") — the recorded canvas
+      // (or its frame-ratio crop) isn't guaranteed even on either axis.
+      const ret = await ffmpeg.exec([
+        '-r', String(fps),
+        '-i', 'input.webm',
+        '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2',
+        '-c:v', 'libx264', '-pix_fmt', 'yuv420p', 'output.mp4'
+      ]);
+      if (ret !== 0) throw new Error('ffmpeg exited with code ' + ret);
+      const data = await ffmpeg.readFile('output.mp4');
+      if (data.length === 0) throw new Error('ffmpeg produced an empty output file');
+      return new Blob([data.buffer], { type: 'video/mp4' });
+    } finally {
+      if (typeof ffmpeg.off === 'function') ffmpeg.off('progress', progressHandler);
+      // Free the virtual FS entries — this instance is reused for the next export.
+      try { await ffmpeg.deleteFile('input.webm'); } catch {}
+      try { await ffmpeg.deleteFile('output.mp4'); } catch {}
+    }
   }
 
   // Crops the just-rendered main canvas down to the selected Frame ratio guide
@@ -5827,9 +6112,11 @@
       const prevBg = scene.background;
       scene.background = new THREE.Color(currentBg);
       topRenderer.render(scene, topCamera);
+      leftRenderer.render(scene, leftCamera);
       scene.background = prevBg;
     } else {
       topRenderer.render(scene, topCamera);
+      leftRenderer.render(scene, leftCamera);
     }
     if (recording && recordTrack){
       const now = performance.now();
