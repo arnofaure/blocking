@@ -197,7 +197,7 @@
   #tb-info { margin-left:auto; display:flex; align-items:center; gap:14px; font-size:11px; color:var(--text-dim); }
   #tb-info b { color:var(--text); font-weight:600; }
 
-  #stage { position:absolute; top:60px; right:0; bottom:22px; left:250px; display:flex; flex-direction:column; }
+  #stage { position:absolute; top:60px; right:0; bottom:22px; left:320px; display:flex; flex-direction:column; }
   #views { flex:1; min-height:0; display:flex; flex-direction:row; }
   #canvas-wrap { flex:1; min-width:0; position:relative; overflow:hidden; }
   #topview-wrap { flex: 0 0 auto; width:300px; min-width:0; display:flex; flex-direction:column; background:#101113; }
@@ -309,7 +309,7 @@
   #camHudToggle.visible, #displayHudToggle.visible, #charHudToggle.visible, #bgHudToggle.visible { display:block; }
 
   #panel {
-    position:absolute; top:60px; left:0; bottom:22px; width:250px;
+    position:absolute; top:60px; left:0; bottom:22px; width:320px;
     background: var(--panel); border-right:0.5px solid var(--panel-border);
     padding:14px; overflow-y:auto; z-index: 10;
   }
@@ -376,6 +376,18 @@
     border-radius: var(--radius); padding:5px 6px; width:52px;
   }
   input[type="range"] { width:100%; accent-color: var(--text); }
+  select {
+    font-family: inherit; font-size:12px; color: var(--text);
+    background: transparent; border:0.5px solid var(--panel-border);
+    border-radius: var(--radius); padding:5px 24px 5px 8px; cursor:pointer;
+    -webkit-appearance:none; appearance:none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position: right 8px center;
+    transition: border-color .15s;
+  }
+  select:hover { border-color: var(--border-hover); }
+  select:focus { outline:none; border-color: var(--border-hover); }
+  select option { background: var(--panel); color: var(--text); }
   input[type="color"] { border:0.5px solid var(--panel-border); border-radius: var(--radius); background:transparent; }
   input[type="color"]::-webkit-color-swatch-wrapper { padding:0; }
   input[type="color"]::-webkit-color-swatch { border:none; border-radius: var(--radius); }
@@ -391,6 +403,11 @@
     color:var(--text-dim); margin:10px 0 4px 2px;
   }
   .add-group-label:first-of-type { margin-top:10px; }
+  .prop-btn { display:flex; align-items:center; gap:8px; }
+  .prop-thumb {
+    width:22px; height:22px; flex-shrink:0; border-radius:4px;
+    background: rgba(255,255,255,0.04); object-fit:contain;
+  }
   .swatches { display:flex; gap:6px; }
   .swatch {
     flex:1; height:28px; border-radius: var(--radius); cursor:pointer;
@@ -957,7 +974,7 @@
 
   <section>
     <h2>Characters / Objects</h2>
-    <button class="primary" id="addChar">+ Add character</button>
+    <button class="primary prop-btn" id="addChar"><img class="prop-thumb" data-thumb="character" alt="">Add character</button>
     <div id="charList"></div>
     <div class="row" style="margin-bottom:6px">
       <button id="poseToggle" disabled>Stand / Sit / Lie</button>
@@ -974,32 +991,32 @@
     </div>
     <div class="add-group-label" style="margin-top:10px">Vehicles</div>
     <div class="row" style="margin-bottom:6px">
-      <button id="addCar">+ Car</button>
-      <button id="addBus">+ Bus</button>
+      <button class="prop-btn" id="addCar"><img class="prop-thumb" data-thumb="car" alt="">Car</button>
+      <button class="prop-btn" id="addBus"><img class="prop-thumb" data-thumb="bus" alt="">Bus</button>
     </div>
     <div class="add-group-label">Structures</div>
     <div class="row" style="margin-bottom:6px">
-      <button id="addWall">+ Wall</button>
-      <button id="addHouse">+ House</button>
+      <button class="prop-btn" id="addWall"><img class="prop-thumb" data-thumb="wall" alt="">Wall</button>
+      <button class="prop-btn" id="addHouse"><img class="prop-thumb" data-thumb="house" alt="">House</button>
     </div>
     <div class="row" style="margin-bottom:6px">
-      <button id="addDoor">+ Door</button>
+      <button class="prop-btn" id="addDoor"><img class="prop-thumb" data-thumb="door" alt="">Door</button>
     </div>
     <div class="add-group-label">Nature</div>
     <div class="row" style="margin-bottom:6px">
-      <button id="addTree">+ Tree</button>
-      <button id="addMountain" title="A low-poly peak with a fixed (non-animated) bumpy noise, different every time one is added">+ Mountain</button>
+      <button class="prop-btn" id="addTree"><img class="prop-thumb" data-thumb="tree" alt="">Tree</button>
+      <button class="prop-btn" id="addMountain" title="A low-poly peak with a fixed (non-animated) bumpy noise, different every time one is added"><img class="prop-thumb" data-thumb="mountain" alt="">Mountain</button>
     </div>
     <div class="add-group-label">Furniture &amp; rig</div>
     <div class="row" style="margin-bottom:6px">
-      <button id="addTable">+ Table</button>
-      <button id="addCage" title="Hollow box made of edges only — resize it to use as a car/cage frame with characters inside">+ Cage</button>
+      <button class="prop-btn" id="addTable"><img class="prop-thumb" data-thumb="table" alt="">Table</button>
+      <button class="prop-btn" id="addCage" title="Hollow box made of edges only — resize it to use as a car/cage frame with characters inside"><img class="prop-thumb" data-thumb="cage" alt="">Cage</button>
     </div>
     <div class="add-group-label">Shapes</div>
     <div class="row">
-      <button id="addSphere">+ Sphere</button>
-      <button id="addCube">+ Cube</button>
-      <button id="addPyramid">+ Pyramid</button>
+      <button class="prop-btn" id="addSphere"><img class="prop-thumb" data-thumb="sphere" alt="">Sphere</button>
+      <button class="prop-btn" id="addCube"><img class="prop-thumb" data-thumb="cube" alt="">Cube</button>
+      <button class="prop-btn" id="addPyramid"><img class="prop-thumb" data-thumb="pyramid" alt="">Pyramid</button>
     </div>
   </section>
 
@@ -2692,21 +2709,27 @@
   }
 
   // A flat slab plus a small knob so it doesn't read as a plain wall panel.
+  // The slab and knob are offset so the group's own origin — where rotation.y
+  // and Width scaling are applied — sits at the door's left (hinge) edge
+  // instead of its center, matching how a real door swings and resizes.
   function buildDoorGroup(color){
     const size = PROP_SIZES.door;
     const mat = new THREE.MeshStandardMaterial({ color, roughness:0.7, flatShading:true });
     const group = new THREE.Group();
+    const hingeOffset = size.w / 2;
 
     const slab = new THREE.Mesh(new THREE.BoxGeometry(size.w, size.h, size.d), mat);
+    slab.position.x = hingeOffset;
     slab.castShadow = true;
     group.add(slab);
 
     const knobMat = new THREE.MeshStandardMaterial({ color:0xd9c34a, roughness:0.4, metalness:0.6 });
     const knob = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), knobMat);
-    knob.position.set(size.w * 0.32, 0, size.d / 2 + 0.04);
+    knob.position.set(hingeOffset + size.w * 0.32, 0, size.d / 2 + 0.04);
     group.add(knob);
 
     group.userData.mat = mat;
+    group.userData.hingeOffset = hingeOffset;
     return group;
   }
 
@@ -2831,7 +2854,9 @@
     const count = objects.filter(o => o.userData.type === type).length + 1;
     mesh.userData.name = type.charAt(0).toUpperCase() + type.slice(1) + ' ' + count;
     mesh.userData.type = type;
-    mesh.add(makeDirectionArrow(size.d / 2 + 0.15));
+    const arrow = makeDirectionArrow(size.d / 2 + 0.15);
+    if (type === 'door') arrow.position.x = mesh.userData.hingeOffset || 0;
+    mesh.add(arrow);
     scene.add(mesh);
     objects.push(mesh);
     select(mesh);
@@ -3149,6 +3174,64 @@
   document.getElementById('addPyramid').onclick = () => addProp('pyramid');
   document.getElementById('addMountain').onclick = () => addProp('mountain');
   document.getElementById('addCage').onclick = () => addProp('cage');
+
+  // Real offscreen-rendered 3D previews for the add-prop buttons, instead of
+  // plain text labels — built from the exact same mesh factories used when
+  // actually adding the object, so they always match what gets placed.
+  (function renderPropThumbnails(){
+    const SIZE = 96;
+    const thumbCanvas = document.createElement('canvas');
+    thumbCanvas.width = SIZE; thumbCanvas.height = SIZE;
+    const thumbRenderer = new THREE.WebGLRenderer({ canvas: thumbCanvas, antialias:true, alpha:true });
+    thumbRenderer.setSize(SIZE, SIZE, false);
+    const thumbScene = new THREE.Scene();
+    thumbScene.add(new THREE.AmbientLight(0xffffff, 0.8));
+    const key = new THREE.DirectionalLight(0xffffff, 1.1);
+    key.position.set(3, 5, 4);
+    thumbScene.add(key);
+    const thumbCamera = new THREE.PerspectiveCamera(32, 1, 0.05, 100);
+
+    function shoot(buildFn){
+      const obj = buildFn();
+      thumbScene.add(obj);
+      const box = new THREE.Box3().setFromObject(obj);
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+      obj.position.sub(center);
+      const radius = Math.max(size.x, size.y, size.z, 0.001) * 0.85;
+      thumbCamera.position.set(radius * 1.35, radius * 1.05, radius * 1.35);
+      thumbCamera.lookAt(0, 0, 0);
+      thumbRenderer.render(thumbScene, thumbCamera);
+      const url = thumbCanvas.toDataURL('image/png');
+      thumbScene.remove(obj);
+      return url;
+    }
+
+    const builders = {
+      character: () => buildCharacter(palette[0]),
+      car: () => buildPropMesh('car', PROP_SIZES.car.color),
+      bus: () => buildPropMesh('bus', PROP_SIZES.bus.color),
+      wall: () => buildPropMesh('wall', PROP_SIZES.wall.color),
+      house: () => buildPropMesh('house', PROP_SIZES.house.color),
+      door: () => buildPropMesh('door', PROP_SIZES.door.color),
+      tree: () => buildPropMesh('tree', PROP_SIZES.tree.color),
+      mountain: () => buildPropMesh('mountain', PROP_SIZES.mountain.color),
+      table: () => buildPropMesh('table', PROP_SIZES.table.color),
+      cage: () => buildPropMesh('cage', PROP_SIZES.cage.color),
+      sphere: () => buildPropMesh('sphere', PROP_SIZES.sphere.color),
+      cube: () => buildPropMesh('cube', PROP_SIZES.cube.color),
+      pyramid: () => buildPropMesh('pyramid', PROP_SIZES.pyramid.color)
+    };
+
+    document.querySelectorAll('.prop-thumb').forEach(img => {
+      const type = img.getAttribute('data-thumb');
+      const build = builders[type];
+      if (!build) return;
+      img.src = shoot(build);
+    });
+
+    thumbRenderer.dispose();
+  })();
   document.getElementById('objColor').addEventListener('pointerdown', pushUndo);
   document.getElementById('objColor').oninput = (e) => {
     if (!selected || selected === 'camera' || selected.isCharGroup) return;
@@ -5855,11 +5938,17 @@
       // scale=trunc(iw/2)*2:trunc(ih/2)*2: libx264 refuses an odd width or
       // height outright ("height not divisible by 2") — the recorded canvas
       // (or its frame-ratio crop) isn't guaranteed even on either axis.
+      // preset ultrafast: ffmpeg.wasm's core is single-threaded (no COOP/COEP
+      // headers on GitHub Pages to enable the multi-threaded build), so
+      // libx264's default "medium" preset is slow enough to feel stuck on
+      // anything but a few seconds of footage. ultrafast trades compression
+      // efficiency (bigger file) for a large, real encode-speed win, which
+      // matters far more than file size for a previz/blocking export.
       const ret = await ffmpeg.exec([
         '-r', String(fps),
         '-i', 'input.webm',
         '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2',
-        '-c:v', 'libx264', '-pix_fmt', 'yuv420p', 'output.mp4'
+        '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '20', '-pix_fmt', 'yuv420p', 'output.mp4'
       ]);
       if (ret !== 0) throw new Error('ffmpeg exited with code ' + ret);
       const data = await ffmpeg.readFile('output.mp4');
